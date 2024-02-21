@@ -1,1 +1,6 @@
 cmplx_estimator/logfiles/
+cmplx_estimator/cmplx.sub
+direct_estimator/initialterm.sub
+direct_estimator/onesim.sub
+direct_estimator/twosims.sub
+direct_estimator/threesims.sub
