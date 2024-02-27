@@ -2,7 +2,7 @@
 #! This line is a comment
 #! Make sure you only have comments and #SBATCH directives between here and the end of the #SBATCH directives, or things will break
 #! Name of the job:
-#SBATCH -J  newcoeffcmplx
+#SBATCH -J  gitcmplxbispec
 #! Account name for group, use SL2 for paying queue:
 #SBATCH -A DIRAC-DP002-CPU
 #! Output filename:
@@ -50,7 +50,7 @@ conda activate cmplx_fld_lensplus
 
 # Calculate the arguments to send to k6_cmplx.py (to cover all possible data and starting simulation combinations - program will exit if they are the same).
 #remember that in bash / is integer division and won't return decimals.
-OFFSET=10000
+OFFSET=20000
 task_id=$(($SLURM_ARRAY_TASK_ID + $OFFSET))  #####MISTAKE - SHOULD BE -OFFSET SO THE 5000-9999 WAS ACC CALCULATING 10000-15000 SO REMOVE OFFSET IN FUTURE - NOT NEEDED BUT CHECK NOT DUPLICATING STUFF
 
 arg1=$(($task_id / 448))
