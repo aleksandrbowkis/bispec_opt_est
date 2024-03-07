@@ -169,4 +169,4 @@ bispec_unnorm = cs.bispec.bispec_bin(nbins,bin_edges,lmax,alm_real,alm_imag, bst
 bispec = bispec_unnorm * np.sqrt(4*np.pi)/bispec_norm
 
 #Save output
-np.savetxt("/home/amb257/rds/hpc-work/kappa_bispec/optimal_est/onesimterms/cmplx_multidata/data"+str(data_index)+"/folded_multipledata_cmplx_data"+str(data_index)+"_simstart"+str(sim1_index)+".txt",(bin_mid, bispec))
+np.savetxt("/home/amb257/rds/hpc-work/kappa_bispec/optimal_est/onesimterms/cmplx_multidata/data"+str(data_index)+"/folded_cmplx_data"+str(data_index)+"_simstart"+str(sim1_index)+".txt",(bin_mid, bispec))
