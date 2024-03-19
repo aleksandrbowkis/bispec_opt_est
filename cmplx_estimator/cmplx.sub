@@ -7,9 +7,9 @@
 #SBATCH -A DIRAC-DP002-CPU
 #! Output filename:
 #! %A means slurm job ID and %a means array index
-#SBATCH --output=logfiles/DIRAC_fold_%A_%a.out
+#SBATCH --output=logfiles/cmplx_fold_%A_%a.out
 #! Errors filename:
-#SBATCH --error=logfiles/DIRAC_fold_%A_%a.err
+#SBATCH --error=logfiles/cmplx_fold_%A_%a.err
 
 
 #! Number of nodes to be allocated for the job (for single core jobs always leave this at 1)
@@ -26,7 +26,7 @@
 #SBATCH --mem=13000mb
 #! Submit a job array with index values between 0 and 31
 #! NOTE: This must be a range, not a single number (i.e. specifying '32' here would only run one job, with index 32)
-#SBATCH --array=0-4999:1#8119#8000-9999:1#0-5000:1 #the number of combinations of data and starting simulation possible with 448 overall simulations labelled 0-447 and 100 datas labelled 0-99 (100*448)
+#SBATCH --array=1-4999:1#8119#8000-9999:1#0-5000:1 #the number of combinations of data and starting simulation possible with 448 overall simulations labelled 0-447 and 100 datas labelled 0-99 (100*448)
 # Note having to split the 44800 tasks up as there is a maximum job array size
 
 #! This is the partition name.
@@ -50,7 +50,7 @@ conda activate cmplx_fld_lensplus
 
 # Calculate the arguments to send to k6_cmplx.py (to cover all possible data and starting simulation combinations - program will exit if they are the same).
 #remember that in bash / is integer division and won't return decimals.
-OFFSET=20000
+OFFSET=15000
 task_id=$(($SLURM_ARRAY_TASK_ID + $OFFSET))  #####MISTAKE - SHOULD BE -OFFSET SO THE 5000-9999 WAS ACC CALCULATING 10000-15000 SO REMOVE OFFSET IN FUTURE - NOT NEEDED BUT CHECK NOT DUPLICATING STUFF
 
 arg1=$(($task_id / 448))
