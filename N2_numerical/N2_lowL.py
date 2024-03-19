@@ -12,12 +12,8 @@ rlmin, rlmax = 2, 3000 # CMB multipole range for reconstruction
 nside = 2048
 bstype = 'fold'
 nsims = 448 # Number of simulations to average over (in sets of 3) 
-# Note in submission script nsims = number of command line arguments to pass (any more and start duplicating different datas)
-
-a = complex(0,np.sqrt(2.0))
-c = -2.0
-d = complex(0, 0.5*(np.sqrt(2)+np.sqrt(10))/np.sqrt(3))
-e = complex(0, 0.5*(np.sqrt(2)-np.sqrt(10))/np.sqrt(3))
+ellmin = 2 
+ellmax = 1000
 
 ################ Power spectra ################
 
@@ -34,6 +30,12 @@ sigma_noise = 10 #in muK-arcmin
 arcmin2radfactor = np.pi / 60.0 / 180.0
 noise_cl = (sigma_noise*arcmin2radfactor/Tcmb)**2*np.exp(L*(L+1.)*(theta_fwhm*arcmin2radfactor)**2/np.log(2.)/8.)
 ocl = np.copy(lcl) + noise_cl
+
+# Interpolation functions for cl_kappa and ucl
+cl_kappa_interp = interp1d(L, cl_kappa, kind='cubic', bounds_error=False, fill_value="extrapolate")
+ucl_interp = interp1d(L, ucl, kind='cubic', bounds_error=False, fill_value="extrapolate")
+lcl_interp = interp1d(L, lcl, kind='cubic', bounds_error=False, fill_value="extrapolate")
+ocl_interp = interp1d(L, ocl, kind='cubic', bounds_error=False, fill_value="extrapolate")
 
 ################# Functions ##################
 
@@ -52,14 +54,14 @@ def response_func(CTlens, l1, l2, sizel1, sizel2):
     #CTlens is lensed power spectrum, l1, l2 are the multipole values.
     #L is the multipole at which we will evaluate the N(0) bias term
     L = l1 + l2
-    f12 = dotprod(L,l1)*CTlens[sizel1] + dotprod(L,l2)*CTlens[sizel2]
+    f12 = dotprod(L,l1)*CTlens(sizel1) + dotprod(L,l2)*CTlens(sizel2)
     return f12
 
 def bigF(l1, l2, l1size, l2size, CTlens, Ctotal):
     #computes the function F(l1,l2) = f(l1,l2)/(2 Ctot(l1) Ctot(l2))
     # f12 is the response function
     
-    bigF = response_func(CTlens, l1, l2, l1size, l2size) / ( 2 * Ctotal[l1size] * Ctotal[l2size])
+    bigF = response_func(CTlens, l1, l2, l1size, l2size) / ( 2 * Ctotal(l1size) * Ctotal(l2size))
     return bigF
 
 def make_equilateral_L(sizeL):
@@ -84,3 +86,40 @@ def make_fold_L(sizeL):
     L3[0] = -sizeL / 2
 
     return L1, L2, L3
+
+def integrand_generator(L1, L2, L3, cl_kappa_interp, lcl_interp, ucl_interp, ellmin, ellmax):
+    """
+    Closure for capturing fixed L1, L2, L3 etc. and returning a 2D integrand function.
+    """
+
+    def integrand_N2_A(ell):
+        
+        #print(ell.shape)
+        ell_size = vect_modulus(ell)
+        ellminusL1 = ell - L1
+        sizeellminusL1 = vect_modulus(ellminusL1)
+        
+        sizeL2 = vect_modulus(L2)
+        sizeL3 = vect_modulus(L3)
+                                                                
+        
+        if ell_size <= ellmax and  sizeellminusL1 <= ellmax and ell_size >= ellmin and  sizeellminusL1 >= ellmin:
+            Fint1int = bigF(ell, L1-ell, ell_size, sizeellminusL1, lcl_interp, ocl_interp)
+            N2_A =  Fint1int * cl_kappa_interp(sizeL2) * cl_kappa_interp(sizeL3) * ucl_interp(sizeellminusL1) * dotprod(ellminusL1, L2) * dotprod(ellminusL1, L3)   
+        else:
+            N2_A = 0
+
+        return N2_A 
+
+    return integrand_N2_A
+
+
+############ Main code ##########
+
+integration_limits = [[ellmin, ellmax], [ellmin, ellmax]] #Don't need to use circular limits as the conditions in the integrand function set integrand to zero outside of the circle.
+
+L1, L2, L3 = make_fold_L(50)
+integrand_function = integrand_generator(L1,  L2, L3, cl_kappa_interp, lcl_interp, ucl_interp, ellmin, ellmax)
+integrator = vegas.Integrator(integration_limits)
+result = integrator(integrand_function, nitn=10, neval=1000)
+print(result.summary())
