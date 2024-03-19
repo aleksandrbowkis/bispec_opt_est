@@ -1,7 +1,7 @@
 #### Import modules
 import numpy as np
 import camb
-import vegas #ceuadmin/VEGAS2/2.01.17  is the module on HPC
+import vegas 
 from scipy.interpolate import interp1d
 
 ################ Parameters ###############
@@ -22,7 +22,7 @@ L = np.arange(rlmax+1)
 Lfac = (L*(L+1.) / 2 )**2
 lcl = cl_len[0:rlmax+1] / Tcmb**2
 ucl = cl_unl[0:rlmax+1] / Tcmb**2 #dimless unlensed T Cl
-cl_kappa = Lfac * cl_phi
+cl_kappa = Lfac * cl_phi[0:3001]
 
 #Make noise power spectra
 theta_fwhm = 1.4 #In arcminutes
@@ -118,8 +118,16 @@ def integrand_generator(L1, L2, L3, cl_kappa_interp, lcl_interp, ucl_interp, ell
 
 integration_limits = [[ellmin, ellmax], [ellmin, ellmax]] #Don't need to use circular limits as the conditions in the integrand function set integrand to zero outside of the circle.
 
-L1, L2, L3 = make_fold_L(50)
-integrand_function = integrand_generator(L1,  L2, L3, cl_kappa_interp, lcl_interp, ucl_interp, ellmin, ellmax)
-integrator = vegas.Integrator(integration_limits)
-result = integrator(integrand_function, nitn=10, neval=1000)
-print(result.summary())
+bin_edges = np.array([20,40,60,80,100,200,300,400,500, 600, 700, 800, 900, 1000])
+bin_mid = 0.5*(bin_edges[1:] + bin_edges[:-1])
+
+for i in bin_mid:
+    L1, L2, L3 = make_fold_L(i)
+    integrand_function = integrand_generator(L1,  L2, L3, cl_kappa_interp, lcl_interp, ucl_interp, ellmin, ellmax)
+    integrator = vegas.Integrator(integration_limits)
+    result = integrator(integrand_function, nitn=10, neval=1000)
+
+    #Now normalise
+    norm_factor = (2*np.pi)^(-2)
+    print(i, result)
+print('done')
