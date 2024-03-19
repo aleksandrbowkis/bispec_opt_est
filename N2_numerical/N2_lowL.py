@@ -34,3 +34,53 @@ sigma_noise = 10 #in muK-arcmin
 arcmin2radfactor = np.pi / 60.0 / 180.0
 noise_cl = (sigma_noise*arcmin2radfactor/Tcmb)**2*np.exp(L*(L+1.)*(theta_fwhm*arcmin2radfactor)**2/np.log(2.)/8.)
 ocl = np.copy(lcl) + noise_cl
+
+################# Functions ##################
+
+def dotprod(l1,l2):
+    #Computes the dot product of two (multipole) vectors.
+    l1dotl2 = l1[0]*l2[0] + l1[1]*l2[1]
+    return l1dotl2
+
+def vect_modulus(l1):
+    #Computes the modulus of an input vector
+    modl1 = np.sqrt(l1[0]**2 + l1[1]**2)
+    return modl1
+
+def response_func(CTlens, l1, l2, sizel1, sizel2):
+    #Computes the response function f where <T(l1)T(l2)> = f(l1,l2)phi (T here is the lensed CMB temperature, phi is the lensing potential). Comes from taylor expanding the lensed temp.
+    #CTlens is lensed power spectrum, l1, l2 are the multipole values.
+    #L is the multipole at which we will evaluate the N(0) bias term
+    L = l1 + l2
+    f12 = dotprod(L,l1)*CTlens[sizel1] + dotprod(L,l2)*CTlens[sizel2]
+    return f12
+
+def bigF(l1, l2, l1size, l2size, CTlens, Ctotal):
+    #computes the function F(l1,l2) = f(l1,l2)/(2 Ctot(l1) Ctot(l2))
+    # f12 is the response function
+    
+    bigF = response_func(CTlens, l1, l2, l1size, l2size) / ( 2 * Ctotal[l1size] * Ctotal[l2size])
+    return bigF
+
+def make_equilateral_L(sizeL):
+    # Makes a set of 3 L's satisfying the triangle condition w/ L1 along the x axis and each L same length.
+    L1, L2, L3 = np.zeros(2), np.zeros(2), np.zeros(2)
+    L1[0] = sizeL
+    
+    L2[0] = -sizeL * np.cos(np.pi/3)
+    L2[1] = sizeL * np.sin(np.pi/3)
+
+    L3[0] = -sizeL * np.cos(np.pi/3)
+    L3[1] = -sizeL * np.sin(np.pi/3)
+    
+    return L1, L2, L3
+
+def make_fold_L(sizeL):
+    # Makes a set of 3 L's satisfying the condition L1 = 2L2 = 2L3 satisfying the triangle condition.
+    L1, L2, L3 = np.zeros(2), np.zeros(2), np.zeros(2)
+    L1[0] = sizeL
+
+    L2[0] = -sizeL / 2
+    L3[0] = -sizeL / 2
+
+    return L1, L2, L3
