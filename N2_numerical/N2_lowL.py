@@ -1,12 +1,17 @@
 #### Import modules
 import numpy as np
-import camb
 import vegas 
 from scipy.interpolate import interp1d
+import healpy as hp
+import sys
+sys.path.append('/home/amb257/software/cmplx_cmblensplus/wrap')
+sys.path.append('/home/amb257/software/cmplx_cmblensplus/utils')
+# from cmblensplus/wrap/
+import curvedsky as cs
 
 ################ Parameters ###############
 
-lmax = 2000
+lmax = 1000
 Tcmb  = 2.726e6    # CMB temperature
 rlmin, rlmax = 2, 3000 # CMB multipole range for reconstruction
 nside = 2048
@@ -128,6 +133,13 @@ for i in bin_mid:
     result = integrator(integrand_function, nitn=10, neval=1000)
 
     #Now normalise
-    norm_factor = (2*np.pi)^(-2)
-    print(i, result)
+    #First get normalisation of quadratic estimator
+    #Compute QE normalisation
+    kappa_norm, kappa_curl_norm = {}, {}
+    kappa_norm['TT'], kappa_curl_norm['TT'] = cs.norm_quad.qtt('lens',lmax,rlmin,rlmax,lcl,ocl,lfac='k')
+    norm_factor_key = int(round(i))
+    norm_factor = (2*np.pi)**(-2)  * kappa_norm['TT'][norm_factor_key]
+
+    normalised_integral = norm_factor * result
+    print(i, normalised_integral)
 print('done')
