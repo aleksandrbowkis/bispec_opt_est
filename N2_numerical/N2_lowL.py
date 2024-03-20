@@ -175,16 +175,28 @@ def integrand_generator_B(L1, L2, L3, cl_kappa_interp, lcl_interp, ucl_interp, e
         sizeL3 = vect_modulus(L3)
 
         ############################ Terms where first QE in bispectrum is expanded to first order                               
-        if ell_size <= ellmax and  sizeellminusL1 <= ellmax and ell_size >= ellmin and  sizeellminusL1 >= ellmin:
+        if ell_size <= ellmax and  sizeellminusL1 <= ellmax and sizeellplusL2 <= ellmax and sizeellplusL3 <= ellmax and ell_size >= ellmin and sizeellminusL1 >= ellmin and sizeellplusL2 >= ellmin and sizeellplusL3 >= ellmin:
             Fint1int = bigF(ell, L1-ell, ell_size, sizeellminusL1, lcl_interp, ocl_interp)
-            N2_B1 =  Fint1int * cl_kappa_interp(sizeL2) * cl_kappa_interp(sizeL3) * (ucl_interp(sizeellplusL2) * dotprod(ellplusL2, L2) * dotprod(ellplusL2, L1+L2) + ucl_interp(sizeellplusL3) * dotprod(ellplusL3, L3) * dotprod(ellplusL3, L1+L3)   )
+            N2_B1 =  Fint1int * cl_kappa_interp(sizeL2) * cl_kappa_interp(sizeL3) * (ucl_interp(sizeellplusL2) * dotprod(ellplusL2, L2) * dotprod(ellplusL2, L1+L2) + ucl_interp(sizeellplusL3) * dotprod(ellplusL3, L3) * dotprod(ellplusL3, L1+L3))
         else:
             N2_B1 = 0
 
-        N2_B = N2_B1
+        if ell_size <= ellmax and  sizeellminusL1 <= ellmax and sizeellplusL2 <= ellmax and sizeellplusL3 <= ellmax and ell_size >= ellmin and sizeellminusL1 >= ellmin and sizeellplusL2 >= ellmin and sizeellplusL3 >= ellmin:
+            Fint2int = bigF(ell, L2-ell, ell_size, sizeellminusL1, lcl_interp, ocl_interp)
+            N2_B2 =  Fint2int * cl_kappa_interp(sizeL1) * cl_kappa_interp(sizeL3) * (ucl_interp(sizeellplusL1) * dotprod(ellplusL1, L1) * dotprod(ellplusL1, L1+L2) + ucl_interp(sizeellplusL3) * dotprod(ellplusL3, L3) * dotprod(ellplusL3, L2+L3))
+        else:
+            N2_B2 = 0
+
+        if ell_size <= ellmax and  sizeellminusL1 <= ellmax and sizeellplusL2 <= ellmax and sizeellplusL3 <= ellmax and ell_size >= ellmin and sizeellminusL1 >= ellmin and sizeellplusL2 >= ellmin and sizeellplusL3 >= ellmin:
+            Fint3int = bigF(ell, L3-ell, ell_size, sizeellminusL1, lcl_interp, ocl_interp)
+            N2_B3 =  Fint3int * cl_kappa_interp(sizeL2) * cl_kappa_interp(sizeL1) * (ucl_interp(sizeellplusL2) * dotprod(ellplusL2, L2) * dotprod(ellplusL2, L3+L2) + ucl_interp(sizeellplusL1) * dotprod(ellplusL1, L1) * dotprod(ellplusL1, L1+L3))
+        else:
+            N2_B3 = 0
+        
+        N2_B = N2_B1 + N2_B2 + N2_B3
 
         return N2_B
-    return integrand_N2_A
+    return integrand_N2_B
 
 ############ Main code ##########
 
@@ -195,9 +207,12 @@ bin_mid = 0.5*(bin_edges[1:] + bin_edges[:-1])
 
 for i in bin_mid:
     L1, L2, L3 = make_fold_L(i)
-    integrand_function = integrand_generator_A(L1,  L2, L3, cl_kappa_interp, lcl_interp, ucl_interp, ellmin, ellmax)
+    integrand_function_A = integrand_generator_A(L1,  L2, L3, cl_kappa_interp, lcl_interp, ucl_interp, ellmin, ellmax)
+    integrand_function_B = integrand_generator_B(L1,  L2, L3, cl_kappa_interp, lcl_interp, ucl_interp, ellmin, ellmax)
+
     integrator = vegas.Integrator(integration_limits)
-    result = integrator(integrand_function, nitn=10, neval=1000)
+    result_A = integrator(integrand_function_A, nitn=10, neval=1000)
+    result_B = integrator(integrand_function_B, nitn=10, neval=1000)
 
     #Now normalise
     #First get normalisation of quadratic estimator
@@ -206,7 +221,7 @@ for i in bin_mid:
     kappa_norm['TT'], kappa_curl_norm['TT'] = cs.norm_quad.qtt('lens',lmax,rlmin,rlmax,lcl,ocl,lfac='k')
     norm_factor_key = int(round(i))
     norm_factor = (2*np.pi)**(-2)  * kappa_norm['TT'][norm_factor_key]
-    #print(norm_factor)
-    normalised_integral = norm_factor * result
+
+    normalised_integral = norm_factor * (result_A + result_B)
     print(i, normalised_integral)
 print('done')
