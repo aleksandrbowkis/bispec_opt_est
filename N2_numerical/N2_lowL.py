@@ -92,9 +92,9 @@ def make_fold_L(sizeL):
 
     return L1, L2, L3
 
-def integrand_generator(L1, L2, L3, cl_kappa_interp, lcl_interp, ucl_interp, ellmin, ellmax):
+def integrand_generator_A(L1, L2, L3, cl_kappa_interp, lcl_interp, ucl_interp, ellmin, ellmax):
     """
-    Closure for capturing fixed L1, L2, L3 etc. and returning a 2D integrand function.
+    Closure for capturing fixed L1, L2, L3 etc. and returning the A type terms in the low L approximation of the N2 bias to the lesning bispectrum.
     """
 
     def integrand_N2_A(ell):
@@ -103,32 +103,70 @@ def integrand_generator(L1, L2, L3, cl_kappa_interp, lcl_interp, ucl_interp, ell
         ell_size = vect_modulus(ell)
         ellminusL1 = ell - L1
         sizeellminusL1 = vect_modulus(ellminusL1)
-        
+        ellminusL2 = ell - L2
+        sizeellminusL2 = vect_modulus(ellminusL2)
+        ellminusL3 = ell - L3
+        sizeellminusL3 = vect_modulus(ellminusL3)
+        sizeL1 = vect_modulus(L1)
         sizeL2 = vect_modulus(L2)
         sizeL3 = vect_modulus(L3)
-                                                                
-        
+
+        ############################ Terms where first QE in bispectrum is expanded to first order                               
         if ell_size <= ellmax and  sizeellminusL1 <= ellmax and ell_size >= ellmin and  sizeellminusL1 >= ellmin:
             Fint1int = bigF(ell, L1-ell, ell_size, sizeellminusL1, lcl_interp, ocl_interp)
-            N2_A =  Fint1int * cl_kappa_interp(sizeL2) * cl_kappa_interp(sizeL3) * ucl_interp(sizeellminusL1) * dotprod(ellminusL1, L2) * dotprod(ellminusL1, L3)   
+            N2_A1 =  Fint1int * cl_kappa_interp(sizeL2) * cl_kappa_interp(sizeL3) * ucl_interp(sizeellminusL1) * dotprod(ellminusL1, L2) * dotprod(ellminusL1, L3)   
         else:
-            N2_A = 0
+            N2_A1 = 0
 
+        if ell_size <= ellmax and  sizeellminusL1 <= ellmax and ell_size >= ellmin and  sizeellminusL1 >= ellmin:
+            Fint1int = bigF(ell, L1-ell, ell_size, sizeellminusL1, lcl_interp, ocl_interp)
+            N2_A2 =  Fint1int * cl_kappa_interp(sizeL2) * cl_kappa_interp(sizeL3) * ucl_interp(ell_size) * dotprod(ell, L2) * dotprod(ell, L3)   
+        else:
+            N2_A2 = 0
+
+        ########################### Terms where second QE in bisepctrum is expanded to second order
+        if ell_size <= ellmax and  sizeellminusL2 <= ellmax and ell_size >= ellmin and  sizeellminusL2 >= ellmin:
+            Fint2int = bigF(ell, L2-ell, ell_size, sizeellminusL2, lcl_interp, ocl_interp)
+            N2_A3 =  Fint2int * cl_kappa_interp(sizeL1) * cl_kappa_interp(sizeL3) * ucl_interp(sizeellminusL2) * dotprod(ellminusL2, L1) * dotprod(ellminusL2, L3)   
+        else:
+            N2_A3 = 0
+
+        if ell_size <= ellmax and  sizeellminusL2 <= ellmax and ell_size >= ellmin and  sizeellminusL2 >= ellmin:
+            Fint2int = bigF(ell, L2-ell, ell_size, sizeellminusL2, lcl_interp, ocl_interp)
+            N2_A4 =  Fint2int * cl_kappa_interp(sizeL1) * cl_kappa_interp(sizeL3) * ucl_interp(ell_size) * dotprod(ell, L1) * dotprod(ell, L3)   
+        else:
+            N2_A4 = 0
+
+        ########################### Terms where third QE in bispectrum is expanded to second order
+        if ell_size <= ellmax and  sizeellminusL3 <= ellmax and ell_size >= ellmin and  sizeellminusL3 >= ellmin:
+            Fint3int = bigF(ell, L3-ell, ell_size, sizeellminusL3, lcl_interp, ocl_interp)
+            N2_A5 =  Fint3int * cl_kappa_interp(sizeL2) * cl_kappa_interp(sizeL1) * ucl_interp(sizeellminusL3) * dotprod(ellminusL3, L2) * dotprod(ellminusL3, L1)   
+        else:
+            N2_A5 = 0
+
+        if ell_size <= ellmax and  sizeellminusL3 <= ellmax and ell_size >= ellmin and  sizeellminusL3 >= ellmin:
+            Fint3int = bigF(ell, L1-ell, ell_size, sizeellminusL3, lcl_interp, ocl_interp)
+            N2_A6 =  Fint3int * cl_kappa_interp(sizeL2) * cl_kappa_interp(sizeL1) * ucl_interp(ell_size) * dotprod(ell, L2) * dotprod(ell, L1)   
+        else:
+            N2_A6 = 0
+
+        N2_A = N2_A1 + N2_A2 + N2_A3 + N2_A4 + N2_A5 + N2_A6
         return N2_A 
 
     return integrand_N2_A
 
 
+
 ############ Main code ##########
 
-integration_limits = [[ellmin, ellmax], [ellmin, ellmax]] #Don't need to use circular limits as the conditions in the integrand function set integrand to zero outside of the circle.
+integration_limits = [[ellmin, ellmax], [ellmin, ellmax]] #Don't need to use circular limixts as the conditions in the integrand function set integrand to zero outside of the circle.
 
-bin_edges = np.array([20,40,60,80,100,200,300,400,500, 600, 700, 800, 900, 1000])
+bin_edges = np.array([20,40,60,80,100,200,300])
 bin_mid = 0.5*(bin_edges[1:] + bin_edges[:-1])
 
 for i in bin_mid:
     L1, L2, L3 = make_fold_L(i)
-    integrand_function = integrand_generator(L1,  L2, L3, cl_kappa_interp, lcl_interp, ucl_interp, ellmin, ellmax)
+    integrand_function = integrand_generator_A(L1,  L2, L3, cl_kappa_interp, lcl_interp, ucl_interp, ellmin, ellmax)
     integrator = vegas.Integrator(integration_limits)
     result = integrator(integrand_function, nitn=10, neval=1000)
 
@@ -139,7 +177,7 @@ for i in bin_mid:
     kappa_norm['TT'], kappa_curl_norm['TT'] = cs.norm_quad.qtt('lens',lmax,rlmin,rlmax,lcl,ocl,lfac='k')
     norm_factor_key = int(round(i))
     norm_factor = (2*np.pi)**(-2)  * kappa_norm['TT'][norm_factor_key]
-
+    #print(norm_factor)
     normalised_integral = norm_factor * result
     print(i, normalised_integral)
 print('done')
