@@ -155,7 +155,36 @@ def integrand_generator_A(L1, L2, L3, cl_kappa_interp, lcl_interp, ucl_interp, e
 
     return integrand_N2_A
 
+def integrand_generator_B(L1, L2, L3, cl_kappa_interp, lcl_interp, ucl_interp, ellmin, ellmax):
+    """
+    Closure for capturing fixed L1, L2, L3 etc. and returning the B type terms in the low L approximation of the N2 bias to the lesning bispectrum.
+    """
 
+    def integrand_N2_B(ell):
+        
+        #print(ell.shape)
+        ell_size = vect_modulus(ell)
+        ellminusL1 = ell - L1
+        sizeellminusL1 = vect_modulus(ellminusL1)
+        ellplusL2 = ell + L2
+        sizeellplusL2 = vect_modulus(ellplusL2)
+        ellplusL3 = ell + L3
+        sizeellplusL3 = vect_modulus(ellplusL3)
+        sizeL1 = vect_modulus(L1)
+        sizeL2 = vect_modulus(L2)
+        sizeL3 = vect_modulus(L3)
+
+        ############################ Terms where first QE in bispectrum is expanded to first order                               
+        if ell_size <= ellmax and  sizeellminusL1 <= ellmax and ell_size >= ellmin and  sizeellminusL1 >= ellmin:
+            Fint1int = bigF(ell, L1-ell, ell_size, sizeellminusL1, lcl_interp, ocl_interp)
+            N2_B1 =  Fint1int * cl_kappa_interp(sizeL2) * cl_kappa_interp(sizeL3) * (ucl_interp(sizeellplusL2) * dotprod(ellplusL2, L2) * dotprod(ellplusL2, L1+L2) + ucl_interp(sizeellplusL3) * dotprod(ellplusL3, L3) * dotprod(ellplusL3, L1+L3)   )
+        else:
+            N2_B1 = 0
+
+        N2_B = N2_B1
+
+        return N2_B
+    return integrand_N2_A
 
 ############ Main code ##########
 
