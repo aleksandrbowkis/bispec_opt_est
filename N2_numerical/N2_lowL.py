@@ -18,7 +18,7 @@ nside = 2048
 bstype = 'fold'
 nsims = 448 # Number of simulations to average over (in sets of 3) 
 ellmin = 2 
-ellmax = 1000
+ellmax = 3000 ##### check!!!! vs sims
 
 ################ Power spectra ################
 
@@ -111,9 +111,9 @@ def integrand_generator_A(L1, L2, L3, cl_kappa_interp, lcl_interp, ucl_interp, e
         sizeL2 = vect_modulus(L2)
         sizeL3 = vect_modulus(L3)
 
-        norm_factor_1 = (2*np.pi)**(-2)  * kappa_norm['TT'][int(sizeL1)]
-        norm_factor_2 = (2*np.pi)**(-2)  * kappa_norm['TT'][int(sizeL2)]
-        norm_factor_3 = (2*np.pi)**(-2)  * kappa_norm['TT'][int(sizeL3)]
+        norm_factor_1 = (2*np.pi)**(-2)  * kappa_norm_TT[int(sizeL1)]
+        norm_factor_2 = (2*np.pi)**(-2)  * kappa_norm_TT[int(sizeL2)]
+        norm_factor_3 = (2*np.pi)**(-2)  * kappa_norm_TT[int(sizeL3)]
 
         ############################ Terms where first QE in bispectrum is expanded to first order                               
         if ell_size <= ellmax and  sizeellminusL1 <= ellmax and ell_size >= ellmin and  sizeellminusL1 >= ellmin:
@@ -184,9 +184,9 @@ def integrand_generator_B(L1, L2, L3, cl_kappa_interp, lcl_interp, ucl_interp, e
         sizeL2 = vect_modulus(L2)
         sizeL3 = vect_modulus(L3)
 
-        norm_factor_1 = (2*np.pi)**(-2)  * kappa_norm['TT'][int(sizeL1)]
-        norm_factor_2 = (2*np.pi)**(-2)  * kappa_norm['TT'][int(sizeL2)]
-        norm_factor_3 = (2*np.pi)**(-2)  * kappa_norm['TT'][int(sizeL3)]
+        norm_factor_1 = (2*np.pi)**(-2)  * kappa_norm_TT[int(sizeL1)]
+        norm_factor_2 = (2*np.pi)**(-2)  * kappa_norm_TT[int(sizeL2)]
+        norm_factor_3 = (2*np.pi)**(-2)  * kappa_norm_TT[int(sizeL3)]
 
         ############################ Terms where first QE in bispectrum is expanded to first order                               
         if ell_size <= ellmax and  sizeellminusL1 <= ellmax and sizeellplusL2 <= ellmax and sizeellplusL3 <= ellmax and ell_size >= ellmin and sizeellminusL1 >= ellmin and sizeellplusL2 >= ellmin and sizeellplusL3 >= ellmin:
