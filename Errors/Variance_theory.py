@@ -6,12 +6,33 @@ import matplotlib.pyplot as plt
 import sys, os
 sys.path.append('/home/amb257/software/cmplx_cmblensplus/wrap')
 sys.path.append('/home/amb257/software/cmplx_cmblensplus/utils')
+# from cmblensplus/wrap/
 import basic
 import curvedsky as cs
 import camb
 
-##############
+############## Functions #################
 
+#Function to compute the estimator normalisation directly for testing purposes
+def Nijk(bin_edges, size_bin_edges):
+    N = np.zeros(size_bin_edges-1)
+    sum = 0
+    for index, item in enumerate(bin_edges[0:size_bin_edges-1]):
+        lower_bound_bin = int(item)
+        upper_bound_bin = int(bin_edges[index+1])
+        for l3 in range(int(lower_bound_bin/2), int(upper_bound_bin/2)):
+            for l2 in range(int(lower_bound_bin/2), int(upper_bound_bin/2)):
+                #First calculate the l bounds of w3j function (allowed l1 values given l2,3)
+                lower_bound_w3j = np.abs(l3 - l2)
+                upper_bound_w3j = l3 + l2
+                #Calculate the w3j's
+                w3j = basic.wigner_funcs.wigner_3j(l3,l2,0,0)
+                for l1 in range(lower_bound_bin, upper_bound_bin):
+                    if l1 >= lower_bound_w3j and l1 <= upper_bound_w3j:
+                        position_l1_in_w3j = l1 - lower_bound_w3j #this is the position of the current value of l1 in the w3j array
+                        sum += (2*l1+1)*(2*l2+1)*(2*l3+1) * w3j[position_l1_in_w3j]**2 / (4*np.pi)
+    N[index] = sum
+    return N
 ################ Parameters ###############
 
 lmax = 2000
@@ -19,6 +40,10 @@ Tcmb  = 2.726e6    # CMB temperature
 rlmin, rlmax = 2, 3000 # CMB multipole range for reconstruction
 nside = 2048
 bstype = 'fold'
+bin_edges = [20,40,60,80,100,200,300,400,500, 600, 700, 800, 900, 1000]
+bin_edges = np.array(bin_edges)
+nbins = 13
+size_bin_edges = np.shape(bin_edges)[0]
 
 ################ Power spectra ################
 
@@ -51,22 +76,23 @@ cl_var = cl_kappa + norm_phi
 
 # Find the bin edges and norm for bispec estimator (need for all terms)
 #because low l bins mix in folded configs which are large and negative so pull the estimate down.
-bin_edges = [20,40,60]#,80,100,200,300,400,500, 600, 700, 800, 900, 1000]
-bin_edges = np.array(bin_edges)
-nbins = 13 #change this if change the bins above
 
 
+N_test = Nijk(bin_edges, size_bin_edges)
 bincenters = (bin_edges[1:]+bin_edges[:-1])*.5
 #Compute bs normalisation
 bispec_norm = cs.bispec.bispec_norm(nbins,bin_edges, bstype=bstype, bst=4)
 full_bs_norm = np.sqrt(4*np.pi)/bispec_norm
 N = 1 / full_bs_norm
+
+print('n test', N_test)
+print('N', N)
 #initialise sum, l
 l = 0
 sum = 0
-size_bin_edges = np.shape(bin_edges)[0]
+
 var = np.zeros(size_bin_edges-1) #Make array to hold the variance in the bispec estimate for each bin
-normalising_factor = 3 / (2 * np.pi * N**2) #Calc norm for the binned bispec. This has the same shape as var - one element for each bin - the norm at that bin.
+normalising_factor = 3 / (2 * np.pi * N_test**2) #Calc norm for the binned bispec. This has the same shape as var - one element for each bin - the norm at that bin.
 
 for index, item in enumerate(bin_edges[0:size_bin_edges-1]):
     lower_bound_bin = int(item)
@@ -90,5 +116,6 @@ for index, item in enumerate(bin_edges[0:size_bin_edges-1]):
     sum = 0 #reset sum to zero so can calculate the variance for the next bin.
 
 #Save results
+print('std_new', np.sqrt(var))
 np.savetxt("newfold_var_smallbins_lmax2000_nocasescode.txt", (bincenters, var))
 
