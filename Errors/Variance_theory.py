@@ -40,10 +40,20 @@ Tcmb  = 2.726e6    # CMB temperature
 rlmin, rlmax = 2, 3000 # CMB multipole range for reconstruction
 nside = 2048
 bstype = 'fold'
-bin_edges = [20,40,60,80,100,200,300,400,500, 600, 700, 800, 900, 1000]
+bin_edges = [20,40]#60,80,100,200,300,400,500, 600, 700, 800, 900, 1000]
 bin_edges = np.array(bin_edges)
-nbins = 13
+nbins = 1
 size_bin_edges = np.shape(bin_edges)[0]
+
+#Now set the number of non zero permutations which follows from no. of distinct bins used in the estimator (diff for folded and equi)
+if bstype == 'fold':
+    perms = 2
+elif bstype == 'equi':
+    perms = 6
+else:
+    print('neither folded or equilateral configuration, setting to zero')
+    perms = 0
+
 
 ################ Power spectra ################
 
@@ -92,13 +102,13 @@ l = 0
 sum = 0
 
 var = np.zeros(size_bin_edges-1) #Make array to hold the variance in the bispec estimate for each bin
-normalising_factor = 3 / (2 * np.pi * N_test**2) #Calc norm for the binned bispec. This has the same shape as var - one element for each bin - the norm at that bin.
+normalising_factor = perms / (4 * np.pi * N_test**2) #Calc norm for the binned bispec. This has the same shape as var - one element for each bin - the norm at that bin.
 
 for index, item in enumerate(bin_edges[0:size_bin_edges-1]):
     lower_bound_bin = int(item)
     upper_bound_bin = int(bin_edges[index+1])
-    for l3 in range(int(lower_bound_bin/2), int(upper_bound_bin/2)+1):
-        for l2 in range(int(lower_bound_bin/2), int(upper_bound_bin/2)+1):
+    for l3 in range(int(lower_bound_bin/2), int(upper_bound_bin/2)):
+        for l2 in range(int(lower_bound_bin/2), int(upper_bound_bin/2)):
 
             #First calculate the l bounds of w3j function (allowed l1 values given l2,3)
             lower_bound_w3j = np.abs(l3 - l2)
@@ -106,7 +116,7 @@ for index, item in enumerate(bin_edges[0:size_bin_edges-1]):
             #Calculate the w3j's
             w3j = basic.wigner_funcs.wigner_3j(l3,l2,0,0)
 
-            for l1 in range(lower_bound_bin, upper_bound_bin+1):
+            for l1 in range(lower_bound_bin, upper_bound_bin):
                 if l1 >= lower_bound_w3j and l1 <= upper_bound_w3j:
                     position_l1_in_w3j = l1 - lower_bound_w3j #this is the position of the current value of l1 in the w3j array
                     sum_term = (2*l1+1)*(2*l2+1)*(2*l3+1) * cl_var[l1]* cl_var[l2]*cl_var[l3] * w3j[position_l1_in_w3j]**2
