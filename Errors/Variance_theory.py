@@ -18,10 +18,11 @@ def Nijk(bin_edges, size_bin_edges):
     N = np.zeros(size_bin_edges-1)
     sum = 0
     for index, item in enumerate(bin_edges[0:size_bin_edges-1]):
+        sum = 0
         lower_bound_bin = int(item)
         upper_bound_bin = int(bin_edges[index+1])
-        for l3 in range(int(lower_bound_bin/2), int(upper_bound_bin/2)):
-            for l2 in range(int(lower_bound_bin/2), int(upper_bound_bin/2)):
+        for l3 in range(int(lower_bound_bin/changebins), int(upper_bound_bin/changebins)):
+            for l2 in range(int(lower_bound_bin/changebins), int(upper_bound_bin/changebins)):
                 #First calculate the l bounds of w3j function (allowed l1 values given l2,3)
                 lower_bound_w3j = np.abs(l3 - l2)
                 upper_bound_w3j = l3 + l2
@@ -31,29 +32,32 @@ def Nijk(bin_edges, size_bin_edges):
                     if l1 >= lower_bound_w3j and l1 <= upper_bound_w3j:
                         position_l1_in_w3j = l1 - lower_bound_w3j #this is the position of the current value of l1 in the w3j array
                         sum += (2*l1+1)*(2*l2+1)*(2*l3+1) * w3j[position_l1_in_w3j]**2 / (4*np.pi)
-    N[index] = sum
+        N[index] = sum
     return N
 ################ Parameters ###############
 
-lmax = 2000
+lmax = 1000
 Tcmb  = 2.726e6    # CMB temperature
 rlmin, rlmax = 2, 3000 # CMB multipole range for reconstruction
 nside = 2048
-bstype = 'fold'
-bin_edges = [20,40]#60,80,100,200,300,400,500, 600, 700, 800, 900, 1000]
+bstype = 'equi'
+bin_edges = [20,40,60,80,100,200,300,400,500, 600, 700, 800, 900, 1000]
 bin_edges = np.array(bin_edges)
-nbins = 1
+nbins = 13
 size_bin_edges = np.shape(bin_edges)[0]
 
-#Now set the number of non zero permutations which follows from no. of distinct bins used in the estimator (diff for folded and equi)
+# Now set the number of non zero permutations which follows from no. of distinct bins used in the estimator (diff for folded and equi)
+# and set changebins which changes the bins used st is l/2, l/2, l for folded and l, l, l for equilateral
 if bstype == 'fold':
     perms = 2
+    changebins =2
 elif bstype == 'equi':
     perms = 6
+    changebins = 1
 else:
     print('neither folded or equilateral configuration, setting to zero')
     perms = 0
-
+    changebins=1
 
 ################ Power spectra ################
 
@@ -107,8 +111,8 @@ normalising_factor = perms / (4 * np.pi * N_test**2) #Calc norm for the binned b
 for index, item in enumerate(bin_edges[0:size_bin_edges-1]):
     lower_bound_bin = int(item)
     upper_bound_bin = int(bin_edges[index+1])
-    for l3 in range(int(lower_bound_bin/2), int(upper_bound_bin/2)):
-        for l2 in range(int(lower_bound_bin/2), int(upper_bound_bin/2)):
+    for l3 in range(int(lower_bound_bin/changebins), int(upper_bound_bin/changebins)):
+        for l2 in range(int(lower_bound_bin/changebins), int(upper_bound_bin/changebins)):
 
             #First calculate the l bounds of w3j function (allowed l1 values given l2,3)
             lower_bound_w3j = np.abs(l3 - l2)
@@ -127,5 +131,5 @@ for index, item in enumerate(bin_edges[0:size_bin_edges-1]):
 
 #Save results
 print('std_new', np.sqrt(var))
-np.savetxt("newfold_var_smallbins_lmax2000_nocasescode.txt", (bincenters, var))
+np.savetxt("new"+str(bstype)+"_var.txt", (bincenters, var))
 
