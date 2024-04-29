@@ -103,7 +103,7 @@ def integrand_generator_A(L1, L2, L3, cl_kappa_interp, lcl_interp, ucl_interp, e
 
     def integrand_N1(ell):
         #print(ell.shape)
-        ell_size = vect_modulus(ell)
+        sizeell = vect_modulus(ell)
         ellminusL1 = ell - L1
         sizeellminusL1 = vect_modulus(ellminusL1)
         ellplusL3 = ell + L3
@@ -112,4 +112,7 @@ def integrand_generator_A(L1, L2, L3, cl_kappa_interp, lcl_interp, ucl_interp, e
         if ell_size <= ellmax and  sizeellminusL1 <= ellmax and ell_size >= ellmin and  sizeellminusL1 >= ellmin:
             Fint1int = bigF(ell, L1-ell, ell_size, sizeellminusL1, lcl_interp, ocl_interp)
             F1int3int = bigF(L1-ell, L3 + ell, sizeellminusL1, sizeellplusL3, lcl_interp, ocl_interp)
-            
+            Fint3int = bigF(-ell, L3 + ell, sizeell, sizeellplusL3, lcl_interp, ocl_interp)
+            N0 = 8 * ocl_interp(ell) * ocl_interp(sizeellminusL1) * ocl_interp(sizeellplusL3) * Fint1int * F1int3int * Fint3int
+
+integration_limits = [[ellmin, ellmax], [ellmin, ellmax]]
