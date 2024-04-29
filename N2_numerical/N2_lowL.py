@@ -61,9 +61,6 @@ def response_func(CTlens, l1, l2, sizel1, sizel2):
     #CTlens is lensed power spectrum, l1, l2 are the multipole values.
     #L is the multipole at which we will evaluate the N(0) bias term
     L = l1 + l2
-    print('internal L', L)
-    print('internal dot product',dotprod(L, l1))
-    print('internal CL',CTlens(sizel1))
     f12 = dotprod(L,l1)*CTlens(sizel1) + dotprod(L,l2)*CTlens(sizel2)
     return f12
 
@@ -116,15 +113,16 @@ def integrand_generator_A(L1, L2, L3, cl_kappa_interp, lcl_interp, ucl_interp, e
         sizeL2 = vect_modulus(L2)
         sizeL3 = vect_modulus(L3)
 
-        norm_factor_1 = (2*np.pi)**(-2)  *Lfac[int(sizeL1)]* kappa_norm_TT[int(sizeL1)]
+        norm_factor_1 = (2*np.pi)**(-2)  * kappa_norm_TT[int(sizeL1)]
         norm_factor_2 = (2*np.pi)**(-2)  * kappa_norm_TT[int(sizeL2)]
         norm_factor_3 = (2*np.pi)**(-2)  * kappa_norm_TT[int(sizeL3)]
+        #print('norm1', norm_factor_1)
+        ############################ Terms where first QE in bispectrum is expanded to first order       
 
-        ############################ Terms where first QE in bispectrum is expanded to first order                               
         if ell_size <= ellmax and  sizeellminusL1 <= ellmax and ell_size >= ellmin and  sizeellminusL1 >= ellmin:
             Fint1int = bigF(ell, L1-ell, ell_size, sizeellminusL1, lcl_interp, ocl_interp)
             #print('big F',Fint1int)
-            N2_A1 =  norm_factor_1 #* Fint1int * cl_kappa_interp(sizeL2) * cl_kappa_interp(sizeL3) * ucl_interp(sizeellminusL1) * dotprod(ellminusL1, L2) * dotprod(ellminusL1, L3)   
+            N2_A1 = norm_factor_1 * Fint1int * cl_kappa_interp(sizeL2) * cl_kappa_interp(sizeL3) * ucl_interp(sizeellminusL1) * dotprod(ellminusL1, L2) * dotprod(ellminusL1, L3)   
         else:
             N2_A1 = 0
 
@@ -193,7 +191,7 @@ def integrand_generator_B(L1, L2, L3, cl_kappa_interp, lcl_interp, ucl_interp, e
         norm_factor_1 = (2*np.pi)**(-4)  * kappa_norm_TT[int(sizeL1)] #N.B. includes factor of 1/(2pi)**2 from the integral measure
         norm_factor_2 = (2*np.pi)**(-4)  * kappa_norm_TT[int(sizeL2)]
         norm_factor_3 = (2*np.pi)**(-4)  * kappa_norm_TT[int(sizeL3)]
-
+        print('norm1',norm_factor_1)
         ############################ Terms where first QE in bispectrum is expanded to first order                               
         if ell_size <= ellmax and  sizeellminusL1 <= ellmax and sizeellplusL2 <= ellmax and sizeellplusL3 <= ellmax and ell_size >= ellmin and sizeellminusL1 >= ellmin and sizeellplusL2 >= ellmin and sizeellplusL3 >= ellmin:
             Fint1int = bigF(ell, L1-ell, ell_size, sizeellminusL1, lcl_interp, ocl_interp)
@@ -258,6 +256,7 @@ print('done')
 
 ################# Some testing of resopnse function
 #first test dot prod and vect_modulus
+L1, L2, L3 = make_equilateral_L(500)
 L_test = np.array((1000,0))
 L_test2 = np.array((0,1000))
 sizeL_test = vect_modulus(L_test)
@@ -270,3 +269,9 @@ print('littlef',response_func(lcl_interp, L_test, L_test2, sizeL_test, sizeL_tes
 print('lcl_interp',lcl_interp(sizeL_test))
 print('ocl_interp', ocl_interp(sizeL_test))
 print('bigF',bigF(L_test, L_test2, sizeL_test, sizeL_test2, lcl_interp, ocl_interp))
+
+integrand_function_A = integrand_generator_A(L1,  L2, L3, cl_kappa_interp, lcl_interp, ucl_interp, ellmin, ellmax, kappa_norm['TT'])
+#integrand_function_B = integrand_generator_B(L1,  L2, L3, cl_kappa_interp, lcl_interp, ucl_interp, ellmin, ellmax, kappa_norm['TT'])
+integrator = vegas.Integrator(integration_limits)
+result_A = integrator(integrand_function_A, nitn=10, neval=1000)
+print(result_A)
