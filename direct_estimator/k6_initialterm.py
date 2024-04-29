@@ -56,7 +56,7 @@ lmax = 2000
 Tcmb  = 2.726e6    # CMB temperature
 rlmin, rlmax = 2, 3000 # CMB multipole range for reconstruction
 nside = 2048
-bstype = 'equi'
+bstype = 'fold'
 
 ################ Power spectra ################
 
@@ -93,14 +93,13 @@ lp_T_data_alm = filter_alms(lp_T_data_alm, ocl)
 #0 stands for data, 1,2,3 for the sims
 kappa_00_glm = avQE(lcl, lp_T_data_alm, lp_T_data_alm, lmax, rlmin, rlmax)
 
-#Load in QE normalisation
-phi_norm = np.loadtxt('kappa_norm.txt')
+
 #Compute QE normalisation
-#phi_norm, phi_curl_norm = {}, {}
-#phi_norm['TT'], phi_curl_norm['TT'] = cs.norm_quad.qtt('lens',lmax,rlmin,rlmax,lcl,ocl,lfac='k')
+phi_norm, phi_curl_norm = {}, {}
+phi_norm['TT'], phi_curl_norm['TT'] = cs.norm_quad.qtt('lens',lmax,rlmin,rlmax,lcl,ocl,lfac='k')
 
 #Normalise QE's USUALLY THE BELOW SHOULD HAVE ['TT'] IN IT
-kappa_00_glm *= phi_norm[:,None]
+kappa_00_glm *= phi_norm['TT'][:,None]
 
 
 #Find the bin edges and norm for bispec estimator (need for all terms)
@@ -111,8 +110,6 @@ bin_edges = [20, 40,60,80,100,200,300,400,500, 600, 700, 800, 900, 1000]
 bin_edges = np.array(bin_edges)
 nbins = 13 #change this if change the bins above
 
-#load in bispec norm
-#bispec_norm = np.loadtxt('bispec_norm.txt')
 #bst controls accuracy of calc
 bispec_norm = cs.bispec.bispec_norm(nbins,bin_edges, bstype=bstype, bst=4)
 bin_mid = 0.5*(bin_edges[1:] + bin_edges[:-1])
@@ -124,4 +121,4 @@ bispec_initial_term_unnorm = cs.bispec.bispec_bin(nbins,bin_edges,lmax,kappa_00_
 bispec_initial_term_norm = bispec_initial_term_unnorm * np.sqrt(4*np.pi)/bispec_norm
 
 #Save output
-np.savetxt("/home/amb257/rds/hpc-work/kappa_bispec/optimal_est/onesimterms/initialterm_"+str(sys.argv[1])+".txt",(bin_mid, bispec_initial_term_norm))
+np.savetxt("/home/amb257/rds/hpc-work/kappa_bispec/optimal_est/onesimterms/fold_initialterm_"+str(sys.argv[1])+".txt",(bin_mid, bispec_initial_term_norm))
