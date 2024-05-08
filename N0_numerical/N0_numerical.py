@@ -11,11 +11,11 @@ import curvedsky as cs
 
 ################ Parameters ###############
 
-lmax = 1000
+lmax = 3000
 Tcmb  = 2.726e6    # CMB temperature in microkelvin?
 rlmin, rlmax = 2, 3000 # CMB multipole range for reconstruction
 nside = 2048
-bstype = 'fold'
+bstype = 'equi'
 nsims = 448 # Number of simulations to average over (in sets of 3) 
 ellmin = 2 
 ellmax = 3000 ##### check!!!! vs sims
@@ -26,7 +26,6 @@ ls, cl_unl, cl_len, cl_phi = np.loadtxt('/home/amb257/kappa_bispec/make_sims_par
 L = np.arange(rlmax+1)
 Lfac = (L*(L+1.) / 2 )**2
 lcl = cl_len[0:rlmax+1] / Tcmb**2
-print('lcl not interp', lcl[1000])
 ucl = cl_unl[0:rlmax+1] / Tcmb**2 #dimless unlensed T Cl
 cl_kappa = Lfac * cl_phi[0:3001]
 
@@ -41,7 +40,6 @@ ocl = np.copy(lcl) + noise_cl
 cl_kappa_interp = interp1d(L, cl_kappa, kind='cubic', bounds_error=False, fill_value="extrapolate")
 ucl_interp = interp1d(L, ucl, kind='cubic', bounds_error=False, fill_value="extrapolate")
 lcl_interp = interp1d(L, lcl, kind='cubic', bounds_error=False, fill_value="extrapolate")
-print('interp lcl',lcl_interp(1000))
 ocl_interp = interp1d(L, ocl, kind='cubic', bounds_error=False, fill_value="extrapolate")
 
 ################# Functions ##################
@@ -121,7 +119,7 @@ def norm_generator(L):
 
 def integrand_generator(L1, L3, ocl_interp, ellmin, ellmax):
     """
-    Closure for capturing fixed L1, L2, L3 etc. and returning the A type terms in the low L approximation of the N2 bias to the lensing bispectrum.
+    Closure for capturing fixed L1, L2, L3 etc. and returning the N0 bias.
     """
 
     def integrand_N1(ell):
@@ -151,12 +149,11 @@ def integrand_generator(L1, L3, ocl_interp, ellmin, ellmax):
 
 integration_limits = [[ellmin, ellmax], [ellmin, ellmax]]
 
-bin_edges = np.array([0, 200, 400, 600, 800, 1000])
+bin_edges = np.array([0, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1100, 1200, 1300, 1400, 1500, 1600, 1700, 1800, 1900])
 bin_mid = 0.5*(bin_edges[1:] + bin_edges[:-1])
 
 kappa_norm, kappa_curl_norm = {}, {}
 kappa_norm['TT'], kappa_curl_norm['TT'] = cs.norm_quad.qtt('lens',lmax,rlmin,rlmax,lcl,ocl,lfac='k')
-print('kappa_norm', kappa_norm['TT'][150])
 
 # Calculate normalisation (N.B. for equi all norms are the same. for folded they won't be).
 for i in bin_mid:
@@ -172,21 +169,17 @@ for i in bin_mid:
     norm2 = sizeL2**2 / (2 * norm_integral2)
     norm_integral3 = integrator(norm_integrand_function, nitn=10, neval=1000)
     norm3 = sizeL3**2 / (2 * norm_integral3)
-    print('norm',norm1, norm2, norm3)
 
-N0_final = np.zeros(np.shape(bin_mid)[0])
                     
 for index, item in enumerate(bin_mid):
     L1, L2, L3 = make_equilateral_L(item)
     sizeL1 = int(vect_modulus(L1))
     sizeL2 = int(vect_modulus(L2))
     sizeL3 = int(vect_modulus(L3))
-    print(sizeL1)
     integrand_function = integrand_generator(L1, L3, ocl_interp, ellmin, ellmax)
     
     output = integrator(integrand_function, nitn=10, neval=1000)
-    print(np.shape(output))
-    #N0_final[index] = norm1 * norm2 * norm3 * output[0]
+    N0_final = norm1 * norm2 * norm3 * output
+    print(item, N0_final[0].mean)
 
 
-np.savetxt('N0_numerical', (bin_mid, N0_final))
