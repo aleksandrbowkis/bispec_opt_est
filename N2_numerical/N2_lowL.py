@@ -242,6 +242,7 @@ np.savetxt('lclprime.txt', (L,lclprime))
 np.savetxt('lcldoubleprime.txt', (L, lcldoubleprime))
 np.savetxt('lcl.txt', (L, lcl))
 np.savetxt('ocl.txt', (L, ocl))
+np.savetxt('norm_phi', ())
 
 # Print the outputs from low L vegas, Low L series quad, low L series direct sum
 np.savetxt('SERIES_lowLN2_out.txt', (l_bins, output_series))

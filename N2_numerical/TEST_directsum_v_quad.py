@@ -2,6 +2,12 @@ import numpy as np
 from numpy import random 
 from scipy.integrate import quad
 from scipy.interpolate import interp1d
+import sys
+sys.path.append('/home/amb257/software/cmplx_cmblensplus/wrap')
+sys.path.append('/home/amb257/software/cmplx_cmblensplus/utils')
+# from cmblensplus/wrap/
+import curvedsky as cs
+from scipy.integrate import quad
 
 
 ################ Parameters ###############
@@ -56,11 +62,16 @@ lensingLarray = np.arange(1,100,10)
 output_quad = []
 output_direct = []
 
+# Now calculate the normalisation. Outside loop as unnecessary to repeatedly calculate.
+phi_norm, phi_curl_norm = {}, {}
+phi_norm['TT'], phi_curl_norm['TT'] = cs.norm_quad.qtt('lens',lmax,rlmin,rlmax,lcl,ocl,lfac='')
+
 for lensingL in lensingLarray:
-    # Wrapper function for quad
+    # Wrapper function for quad, call integrand_fn for every lensingL
     def integrand_wrapper(ell):
         return integrand_fn(lensingL, ell, cl_phi_interp, lcl_interp, ctot_interp, ctotprime_interp, lclprime_interp, lcldoubleprime_interp)
 
+    # Populate the integrand for this lensing L at every cmb l up to 2000
     integrand_values = []
     for ell in np.arange(ellmin, ellmax + 1):
         integrand = integrand_fn(lensingL, ell, cl_phi_interp, lcl_interp, ctot_interp, ctotprime_interp, lclprime_interp, lcldoubleprime_interp)
@@ -72,18 +83,28 @@ for lensingL in lensingLarray:
     # Now compute the same integrand using direct summation
     integral_direct_sum = np.sum(integrand_values)
 
+    # Now calculate the normalisation for this lensingL. Recall we're using phi everywhere as the low L N2 result was computed for phi.
+    norm_factor_phi = phi_norm['TT'][int(lensingL)]
+
+    # Normalise the two integrals
+    integral_quad *= norm_factor_phi
+    integral_direct_sum *= norm_factor_phi
+
     print('quad', integral_quad)
     print('direct sum', integral_direct_sum)
+    print('norm_factor_phi', norm_factor_phi)
 
     output_quad.append(integral_quad)
     output_direct.append(integral_direct_sum)
 
-#change outputs to numpy arrays
+# Change outputs to numpy arrays
 output_quad = np.array(output_quad)
 output_direct = np.array(output_direct)
 
-print(lensingLarray)
-print(output_quad)
-
+# Save outputs
 np.savetxt('TEST_quad_equi.txt', (lensingLarray, output_quad))
 np.savetxt('TEST_direct_equi.txt', (lensingLarray, output_direct))
+np.savetxt('norm_phi.txt', (L[:lmax+1],phi_norm['TT']))
+
+""" Summary 16/7/24 this works, low l series expansion agreement between quad and direct sum. Unfortunately still disagreement with vegas and with simulations/Giorgio's calculations.
+Checking vegas vs quad/direct next will load in quad from this and compute vegas in a seperate script to keep tidy. """
