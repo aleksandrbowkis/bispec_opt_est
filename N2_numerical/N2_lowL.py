@@ -211,7 +211,6 @@ for index, item in enumerate(l_bins):
     sizeL1 = vect_modulus(L1)
     norm_factor = kappa_norm['TT'][int(sizeL1)]
     norm_factor_phi = phi_norm['TT'][int(sizeL1)]
-    print('norm phi', norm_factor_phi)
     ell_int, integrand = compute_integrand_values(sizeL1, cl_phi_interp, lcl_interp, ctot_interp, ctotprime_interp, lclprime_interp, lcldoubleprime_interp, ellmin, ellmax)
     integral_direct_sum_intermediate = np.sum(integrand) #This computes the direct sum of the integrand for the current L value (set by i). Since the integrand calculated for integer ell spacing this is integral.
     integral_direct_sum.append(norm_factor_phi*integral_direct_sum_intermediate) #Remember to compute the full integral must include the normalisation factor. Recall the form of the integral etc are for phi, not kappa so need norm_factor_phi
@@ -220,7 +219,10 @@ for index, item in enumerate(l_bins):
     np.savetxt('integrand_direct_sum_'+str(sizeL1)+'.txt', (ell_int, integrand)) 
     
     # Now compute the low L approximation without the series expansion using vegas as 2D integral
-    integrand_function = integrand_generator(L1, L2, L3, cl_kappa_interp, lcl_interp, ctot_interp, ellmin, ellmax)
+
+
+    ######### LOOKS LIKE SENDING KAPPA INSTEAD OF PHI TO THE BELOW!!! 12/7/24 CHECK THIS
+    integrand_function = integrand_generator(L1, L2, L3, cl_phi_interp, lcl_interp, ctot_interp, ellmin, ellmax) 
     integrator = vegas.Integrator(integration_limits)
     result = integrator(integrand_function, nitn=15, neval=1000)
 
