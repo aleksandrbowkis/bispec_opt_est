@@ -1,3 +1,8 @@
+"""
+Code to compute the low (lensing) L approximation (l used for cmb multipoles) to the lensing bispectrum for comparison to the optimal estimator.
+"""
+
+
 #### Import modules
 import numpy as np
 import vegas 
@@ -27,7 +32,6 @@ ls, cl_unl, cl_len, cl_phi = np.loadtxt('/home/amb257/kappa_bispec/make_sims_par
 L = np.arange(rlmax+1)
 Lfac = (L*(L+1.) / 2 )**2
 lcl = cl_len[0:rlmax+1] / Tcmb**2
-print('lcl not interp', lcl[lmax])
 ucl = cl_unl[0:rlmax+1] / Tcmb**2 #dimless unlensed T Cl
 cl_kappa = Lfac * cl_phi[0:rlmax+1]
 cl_phi = cl_phi[0:rlmax+1]
@@ -55,6 +59,7 @@ lclprime = np.gradient(lcl, L)
 lclprime_interp = interp1d(L, lclprime, kind='cubic', bounds_error=False, fill_value="extrapolate")
 lcldoubleprime = np.gradient(lclprime, L)
 lcldoubleprime_interp = interp1d(L, lcldoubleprime, kind='cubic', bounds_error=False, fill_value="extrapolate")
+
 ################# Functions ##################
 
 def dotprod(l1,l2):
@@ -107,7 +112,7 @@ def make_fold_L(sizeL):
 
 def integrand_generator(L1, L2, L3, cl_phi_interp, lcl_interp, ocl_interp, ellmin, ellmax):
     """
-    Closure for capturing fixed L1, L2, L3 etc. and returning the A type terms in the low L approximation of the N2 bias to the lesning bispectrum.
+    Closure for capturing fixed L1, L2, L3 etc. and returning the low L approximation of the N2 bias to the lesning bispectrum.
     """
 
     def integrand_N2(ell):
@@ -139,14 +144,12 @@ def integrand_generator(L1, L2, L3, cl_phi_interp, lcl_interp, ocl_interp, ellmi
             N2_B = 0
 
         return N2_A + N2_B
-       
-
     return integrand_N2
 
 
 def compute_integral(L, cl_phi_interp, lcl_interp, ctot_interp, ctotprime_interp, lclprime_interp, lcldoubleprime_interp, ellmin, ellmax):
     """
-    Compute the integral directly for the series expansion in the low L approximation of the N2 bias to the lensing bispectrum.
+    Compute the integral directly for the !series expansion! in the low L approximation of the N2 bias to the lensing bispectrum.
     """
     def integrand_N2(ell):
         # Only compute the integrand if ell is within bounds
@@ -160,12 +163,12 @@ def compute_integral(L, cl_phi_interp, lcl_interp, ctot_interp, ctotprime_interp
             return 0
 
     # integrate
-    result, error = quad(integrand_N2, ellmin, ellmax, limit=150)
+    result, error = quad(integrand_N2, ellmin, ellmax, limit=500)
     return result, error
 
 def compute_integrand_values(L, cl_phi_interp, lcl_interp, ctot_interp, ctotprime_interp, lclprime_interp, lcldoubleprime_interp, ellmin, ellmax):
     """
-    Compute the values of the integrand for each ell from ellmin to ellmax.
+    Compute the values of the integrand used in the series expansion above for each ell from ellmin to ellmax for a given L.
     """
     ell_values = np.arange(ellmin, ellmax + 1)  # Ensuring ell values are within the range
     integrand_values = []
@@ -184,10 +187,6 @@ def compute_integrand_values(L, cl_phi_interp, lcl_interp, ctot_interp, ctotprim
 
 
 ############ Main code ##########
-#ell_int, integrand = compute_integrand_values(L, cl_phi_interp, lcl_interp, ctot_interp, ctotprime_interp, lclprime_interp, lcldoubleprime_interp, ellmin, ellmax)
-#
-#np.savetxt('integrand_series.txt', (ell_int, integrand))
-
 integration_limits = [[ellmin, ellmax], [ellmin, ellmax]] #Don't need to use circular limits as the conditions in the integrand function set integrand to zero outside of the circle.
 series_integration_limits = [ellmin,ellmax]
 bin_edges = np.array([10,20,30,40])#,,50,60,70, 80, 90, 100, 110, 120])
@@ -200,67 +199,51 @@ kappa_norm['TT'], kappa_curl_norm['TT'] = cs.norm_quad.qtt('lens',lmax,rlmin,rlm
 phi_norm, phi_curl_norm = {}, {}
 phi_norm['TT'], phi_curl_norm['TT'] = cs.norm_quad.qtt('lens',lmax,rlmin,rlmax,lcl,ocl,lfac='')
 
-################# Some testing of resopnse function
-#first test dot prod and vect_modulus
-l_bins = np.arange(0,100,10)
-print(l_bins)
+################# Some testing 
+l_bins = np.arange(1,100,10) #These will be the different lensing L values we will compute the low L bispectrum for, low L approx valid until approximately L of 100
+
 output_series = []
 output_full = []
-
-
-
 integral_direct_sum = []
-for i in l_bins:
-    L1, L2, L3 = make_equilateral_L(i)
+
+for index, item in enumerate(l_bins):
+    L1, L2, L3 = make_equilateral_L(item)
     sizeL1 = vect_modulus(L1)
-    norm_factor =  kappa_norm['TT'][int(sizeL1)]
+    norm_factor = kappa_norm['TT'][int(sizeL1)]
     norm_factor_phi = phi_norm['TT'][int(sizeL1)]
+    print('norm phi', norm_factor_phi)
     ell_int, integrand = compute_integrand_values(sizeL1, cl_phi_interp, lcl_interp, ctot_interp, ctotprime_interp, lclprime_interp, lcldoubleprime_interp, ellmin, ellmax)
-    integral_direct_sum_intermediate = np.sum(integrand)
-    integral_direct_sum.append(norm_factor*integral_direct_sum_intermediate)
+    integral_direct_sum_intermediate = np.sum(integrand) #This computes the direct sum of the integrand for the current L value (set by i). Since the integrand calculated for integer ell spacing this is integral.
+    integral_direct_sum.append(norm_factor_phi*integral_direct_sum_intermediate) #Remember to compute the full integral must include the normalisation factor. Recall the form of the integral etc are for phi, not kappa so need norm_factor_phi
 
-    print('integral direct sum type', type(integral_direct_sum))
-    np.savetxt('integral_direct_sum_'+str(sizeL1)+'.txt', (sizeL1, norm_factor*integral_direct_sum[0])) #this will repeatedly spit out first value - incorrect
+    # For each L output the integrand. Note that integral_direct_sum has the value of the integral for each value of L in l_bins stored in the array.
+    np.savetxt('integrand_direct_sum_'+str(sizeL1)+'.txt', (ell_int, integrand)) 
     
-    
-
+    # Now compute the low L approximation without the series expansion using vegas as 2D integral
     integrand_function = integrand_generator(L1, L2, L3, cl_kappa_interp, lcl_interp, ctot_interp, ellmin, ellmax)
     integrator = vegas.Integrator(integration_limits)
     result = integrator(integrand_function, nitn=15, neval=1000)
+
+    # Now compute the series expansion using the built in quad routine from scipy
     integral_result, integral_error = compute_integral(sizeL1, cl_kappa_interp, lcl_interp, ctot_interp, ctotprime_interp, lclprime_interp, lcldoubleprime_interp, ellmin, ellmax)
 
-    #series_integrand_function = series_integrand_generator_equi(sizeL1, cl_kappa_interp, lcl_interp, ocl_interp, ctotprime_interp, lclprime_interp, lcldoubleprime_interp, ellmin, ellmax)
-    integrator_series = vegas.Integrator(series_integration_limits)
-    #series_result = integrator(series_integrand_function,  nitn=15, neval=1000)
-
     from gvar import mean
-#   print(result)
-    result_mean = mean(result)
-    #series_result_mean = mean(series_result)
-    print('mean', norm_factor_phi*result_mean)
-    print('mean series', norm_factor_phi*integral_result)
-    print('error integral', integral_error)
-#     # print('stuff', cl_kappa_interp(10) / kappa_norm['TT'][int(10)])
-#     # print('clk', cl_kappa_interp(10))
-#     # print('magnitude', cl_kappa_interp(10)**3 * sizeL1**6 * ellmax**2)
-#     # print('magnitude N0',  sizeL1**6 * ellmax**2 *norm_factor**3)
-#     # print('sizes test',sizeL1, ellmax)
-#     # print((result_mean)*norm_factor)
+    result_mean = mean(result) # Low L approximation, no series expansion.
+    print('mean', norm_factor_phi*result_mean) # Low L approx
+    print('mean series', norm_factor_phi*integral_result, norm_factor_phi*integral_error) # Low L approx, series expansion, quad integration routine.
+    print('direct sum', norm_factor_phi*integral_direct_sum_intermediate) # Low L approx, series expansion, direct sum.
     output_series.append(norm_factor_phi*integral_result)
     output_full.append(norm_factor_phi*result_mean)
 
 
-#print(output) 
-print(ctotprime)
-print(uclprime)
+# Print some power spectra for checking
 np.savetxt('ctotprime.txt', (L,ctotprime))
 np.savetxt('lclprime.txt', (L,lclprime))
 np.savetxt('lcldoubleprime.txt', (L, lcldoubleprime))
 np.savetxt('lcl.txt', (L, lcl))
 np.savetxt('ocl.txt', (L, ocl))
 
+# Print the outputs from low L vegas, Low L series quad, low L series direct sum
 np.savetxt('SERIES_lowLN2_out.txt', (l_bins, output_series))
 np.savetxt('lowLN2_out.txt', (l_bins, output_full))
-np.savetxt('series_integrand.txt', (ell_int, integrand))
 np.savetxt('new_direct_sum_integeral.txt', (l_bins, integral_direct_sum))
-print(ls)
