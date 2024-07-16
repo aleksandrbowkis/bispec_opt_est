@@ -58,7 +58,7 @@ def integrand_fn(lensingL, ell, cl_phi_interp, lcl_interp, ctot_interp, ctotprim
     )
     return integrand
 
-lensingLarray = np.arange(1,100,10)
+lensingLarray = np.arange(1,200,10)
 output_quad = []
 output_direct = []
 

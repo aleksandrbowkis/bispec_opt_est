@@ -62,23 +62,11 @@ os.makedirs(output_dir, exist_ok=True)
 
 np.save(os.path.join(output_dir, "L.npy"), L)
 np.save(os.path.join(output_dir, "cl_phi.npy"), cl_phi)
-np.save(os.path.join(output_dir, "cl_phi_interp.npy"), cl_phi_interp)
+np.save(os.path.join(output_dir, "cl_phi.npy"), cl_phi)
 np.save(os.path.join(output_dir, "lcl.npy"), lcl)
-np.save(os.path.join(output_dir, "lcl_interp.npy"), lcl_interp)
+np.save(os.path.join(output_dir, "lcl.npy"), lcl)
 np.save(os.path.join(output_dir, "ctot.npy"), ocl)
-np.save(os.path.join(output_dir, "ctot_interp.npy"), ctot_interp)
-np.save(os.path.join(output_dir, "ctotprime_interp.npy"), ctotprime_interp)
-np.save(os.path.join(output_dir, "lclprime_interp.npy"), lclprime_interp)
-np.save(os.path.join(output_dir, "lcldoubleprime_interp.npy"), lcldoubleprime_interp)
-
-
-
-
-np.save(os.path.join(output_dir, "lcl.npy"), lcl)
-np.save(os.path.join(output_dir, "ucl.npy"), ucl)
-
-np.save(os.path.join(output_dir, "noise_cl.npy"), noise_cl)
-np.save(os.path.join(output_dir, "ocl.npy"), ocl)
+np.save(os.path.join(output_dir, "ctot.npy"), ctot)
 np.save(os.path.join(output_dir, "ctotprime.npy"), ctotprime)
 np.save(os.path.join(output_dir, "lclprime.npy"), lclprime)
 np.save(os.path.join(output_dir, "lcldoubleprime.npy"), lcldoubleprime)
