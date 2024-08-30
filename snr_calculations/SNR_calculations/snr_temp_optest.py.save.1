@@ -1,0 +1,68 @@
+##Program to calculate the snr for the temperature based optimal estimator. Note must pass the Cl + Nl as power spec (N is the reconstruction noise for the power spectrum).
+import numpy as np
+import matplotlib.pyplot as plt
+import sys, os
+sys.path.append('/home/amb257/software/cmblensplus/wrap')
+sys.path.append('/home/amb257/software/cmblensplus/utils')
+import basic
+import curvedsky as cs
+import camb
+
+################ Parameters ###############
+
+lmin = 2
+lmax = 2000
+Tcmb  = 2.726e6    # CMB temperature
+rlmin, rlmax = lmin, lmax # CMB multipole range for reconstruction
+nside = 2048
+nbins = 20 # number bins for bispec estimator
+bstype = 'equi'
+cpmodel = 'modelw'
+fitform = 'GM'
+zcmb = 1088.69
+zm   = 1.
+zs   = [zcmb,zcmb,zcmb]
+zmin, zmax = 0.0001, 40. #lensing signal dominated by intermediate redshifts.
+zn = 50
+btype = 'kkk'
+z, dz = basic.bispec.zpoints(zmin,zmax,zn)
+
+################# Matter Power spec ###########
+
+### Pars (same as sims)
+pars = camb.CAMBparams(min_l=1)
+pars.set_cosmology(H0=67.32, ombh2=0.02238, omch2=0.12010)
+pars.InitPower.set_params(As=2.1005e-9, ns=0.9660, r=0)
+pars.set_for_lmax(5500, lens_potential_accuracy=1)
+pars.set_matter_power(redshifts=[0.], kmax=30)
+results = camb.get_results(pars)
+k, __, pk = results.get_matter_power_spectrum(minkh=1e-4, maxkh=30, npoints=1000)
+s8 = np.array(results.get_sigma8())
+
+################ Power spectra ################
+
+ls, cl_unl, cl_len, phi_camb = np.loadtxt('/home/amb257/kappa_bispec/make_sims_parallel/camb_lencl_phi.txt')
+L = np.arange(lmax+1)
+Lfac = (L*(L+1.))**2/(2*np.pi)
+lcl = cl_len[0:lmax+1] / Tcmb**2
+
+#Make noise power spectra
+#theta_fwhm = 1.4 #In arcminutes
+#sigma_noise = 10 #in muK-arcmin
+#arcmin2radfactor = np.pi / 60.0 / 180.0
+#noise_cl = (sigma_noise*arcmin2radfactor/Tcmb)**2*np.exp(L*(L+1.)*(theta_fwhm*arcmin2radfactor)**2/np.log(2.)/8.)
+#ocl = np.copy(lcl) + noise_cl
+
+#Calculate the quadratic estimator normalisation. This is the N0 bias term to the power spectrum. We want to use the lensing potential power spectrum + N0 bias as the Cl in this variance calculation.
+norm_phi, curl_norm = cs.norm_quad.qtt('lens',lmax,rlmin,rlmax,lcl,lcl, lfac='k')
+
+#Create the power spec we want to use in the variance calculation - change lcl to ocl if want to include instrument noise. Since snr so low in temp only case we're doing everything without noise.
+cl_var = lcl + norm_phi
+################# Main code ####################
+snr_L = np.arange(0,lmax, 100)
+snr = np.zeros(len(snr_L))
+snr = basic.bispec.bispeclens_snr(cpmodel,fitform,z,dz,zs,lmin,lmax,cl_var,k,pk[0],btype=btype)
+#print('shape',np.shape(snr))
+#print(snr)
+#Save output
+np.savetxt('snr_temp.txt', (snr_L, snr))
