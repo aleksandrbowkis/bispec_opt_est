@@ -84,7 +84,7 @@ def make_fold_L(sizeL):
 
 def integrand_generator(L1, L2, L3, cl_phi_interp, lcl_interp, ocl_interp, ellmin, ellmax):
     """
-    Closure for capturing fixed L1, L2, L3 etc. and returning the low L approximation of the N2 bias to the lesning bispectrum.
+    Closure for capturing fixed L1, L2, L3 etc. and returning the low L approximation of the N2 bias to the lensing bispectrum.
     """
 
     def integrand_N2(ell):

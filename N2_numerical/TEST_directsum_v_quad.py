@@ -52,8 +52,8 @@ lcldoubleprime_interp = interp1d(L, lcldoubleprime, kind='cubic', bounds_error=F
 # Define a the integrand
 def integrand_fn(lensingL, ell, cl_phi_interp, lcl_interp, ctot_interp, ctotprime_interp, lclprime_interp, lcldoubleprime_interp):
 
-    integrand = (2 * np.pi) ** 2 * cl_phi_interp(lensingL) ** 2 * 1 / (32 * ctot_interp(ell) ** 3) * lensingL ** 6 * np.pi * (
-        -ell * ctotprime_interp(ell) * (8 * lcl_interp(ell) ** 2 + 6 * ell * lcl_interp(ell) * lclprime_interp(ell) + ell ** 2 * lclprime_interp(ell) ** 2) 
+    integrand = 3  * cl_phi_interp(lensingL) ** 2 * 1 / (32 * ctot_interp(ell) ** 3) * lensingL ** 6 * np.pi * (
+        ell ** 2 * ctotprime_interp(ell) * (8 * lcl_interp(ell) ** 2 + 6 * ell * lcl_interp(ell) * lclprime_interp(ell) + ell ** 2 * lclprime_interp(ell) ** 2) 
         + ctot_interp(ell) * (32 * lcl_interp(ell) ** 2 + 6 * ell ** 2 * lclprime_interp(ell) ** 2 + ell * lcl_interp(ell) * (41 * lclprime_interp(ell) + 3 * ell * lcldoubleprime_interp(ell)))
     )
     return integrand
@@ -96,6 +96,10 @@ for lensingL in lensingLarray:
 
     output_quad.append(integral_quad)
     output_direct.append(integral_direct_sum)
+
+# Convert to kappa bias from phi
+output_quad *= (0.5*lensingLarray*(lensingLarray+1))**3
+output_direct *= (0.5*lensingLarray*(lensingLarray+1))**3
 
 # Change outputs to numpy arrays
 output_quad = np.array(output_quad)
