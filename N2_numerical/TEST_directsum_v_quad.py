@@ -36,7 +36,7 @@ theta_fwhm = 1.4 #In arcminutes
 sigma_noise = 10 #in muK-arcmin
 arcmin2radfactor = np.pi / 60.0 / 180.0
 noise_cl = (sigma_noise*arcmin2radfactor/Tcmb)**2*np.exp(L*(L+1.)*(theta_fwhm*arcmin2radfactor)**2/np.log(2.)/8.)
-ocl = np.copy(lcl) + noise_cl
+ocl = np.copy(lcl) #+ noise_cl #removed noise to cf w giorgio's result.
 
 # Interpolation functions for cl_kappa and ucl
 cl_phi_interp = interp1d(L, cl_phi, kind='cubic', bounds_error=False, fill_value="extrapolate")

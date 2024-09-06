@@ -2,7 +2,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import sys, os
-sys.path.append('/home/amb257/software/full_bspc_lensplus_test/cmblensplus/wrap')
+sys.path.append('/home/amb257/software/cmplx_cmblensplus/wrap')
+sys.path.append('/home/amb257/software/cmplx_cmblensplus/utils')
 import basic
 import curvedsky as cs
 import camb
@@ -15,7 +16,7 @@ Tcmb  = 2.726e6    # CMB temperature
 rlmin, rlmax = lmin, 3000 # CMB multipole range for reconstruction (ie l range of lensed cmb temp field use to reconstruct the lensing field)
 nside = 2048
 nbins = 20 # number bins for bispec estimator
-bstype = 'fold'
+bstype = 'equi'
 cpmodel = 'modelw'
 fitform = 'GM'
 zcmb = 1088.69
@@ -39,9 +40,6 @@ k, __, pk = results.get_matter_power_spectrum(minkh=1e-4, maxkh=30, npoints=1000
 s8 = np.array(results.get_sigma8())
 
 ################# Main code ####################
-snr_L = list(range(20, 501, 20))
-print(snr_L)
-#snr = np.zeros(len(snr_L))
 
 #for index, item in enumerate(snr_L):
  ################ Power spectra ################
@@ -67,6 +65,7 @@ norm_phi, curl_norm = cs.norm_quad.qtt('lens',lmax,rlmin,rlmax,lcl_fornorm,ocl_f
 
 #Create the power spec we want to use in the variance calculation - change lcl to ocl if want to include instrument noise. Since snr so low in temp only case we're doing everything without noise.
 cl_var = ocl + norm_phi
-snr = basic.bispec.bispeclens_snr(cpmodel,fitform,z,dz,zs,lmin,lmax,cl_var,k,pk[0],btype=btype, ro=20)
+snr = basic.bispec.bispeclens_snr(cpmodel,fitform,z,dz,zs,lmin,lmax,cl_var,k,pk[0],btype=btype, ro=5)
 
-np.savetxt('noise_snr_equi_rlmax3000.txt', (snr))
+#np.savetxt('noise_snr_fold_rlmax3000.txt', (snr_L,snr))
+print(snr)
