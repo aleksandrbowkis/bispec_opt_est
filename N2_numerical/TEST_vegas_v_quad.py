@@ -84,7 +84,9 @@ def make_fold_L(sizeL):
 
 def integrand_generator(L1, L2, L3, cl_phi_interp, lcl_interp, ocl_interp, ellmin, ellmax):
     """
-    Closure for capturing fixed L1, L2, L3 etc. and returning the low L approximation of the N2 bias to the lensing bispectrum.
+    Closure for capturing fixed L1, L2, L3 etc. and returning the low L approximation of the N2 bias to the lensing bispectrum. Note no noise needed in numerator as the ps comes 
+    from the <T^6> and gaussian noise will vanish for higher order correl fn.
+
     """
 
     def integrand_N2(ell):
@@ -103,15 +105,15 @@ def integrand_generator(L1, L2, L3, cl_phi_interp, lcl_interp, ocl_interp, ellmi
         sizeL2 = vect_modulus(L2)
         sizeL3 = vect_modulus(L3)
 
-        if sizeell <= ellmax and  sizeellminusL1 <= ellmax and sizeell >= ellmin and  sizeellminusL1 >= ellmin:
+        if sizeell <= ellmax and sizeell >= ellmin and  sizeellminusL1 >= ellmin and sizeellminusL1 <= ellmax :
             Fint1int = bigF(ell, L1-ell, sizeell, sizeellminusL1, lcl_interp, ocl_interp)
-            N2_A = 2/(2*np.pi)**2*Fint1int * cl_phi_interp(sizeL2) * cl_phi_interp(sizeL3) * lcl_interp(sizeell) * dotprod(ell, L2) * dotprod(ell, L3)   
+            N2_A = 2/(2*np.pi)**4*Fint1int * cl_phi_interp(sizeL2) * cl_phi_interp(sizeL3) * lcl_interp(sizeell) * dotprod(ell, L2) * dotprod(ell, L3)   
         else:
             N2_A = 0
 
-        if sizeell <= ellmax and sizeellminusL1  <= ellmax and sizeell >= ellmin and  sizeellminusL1 >= ellmin and sizeellplusL3 <= ellmax and sizeellplusL3 >= ellmin:
+        if sizeell <= ellmax  and sizeell >= ellmin and  sizeellminusL1 >= ellmin and sizeellplusL3 <= ellmax and sizeellplusL3 >= ellmin and sizeellminusL1  <= ellmax:
             Fint1int = bigF(ell, L1-ell, sizeell, sizeellminusL1, lcl_interp, ocl_interp)
-            N2_B = - 2/(2*np.pi)**2*Fint1int * cl_phi_interp(sizeL2) * cl_phi_interp(sizeL3) * lcl_interp(sizeellplusL3) * dotprod(ellplusL3, L2) * dotprod(ellplusL3, L3)   
+            N2_B = - 2/(2*np.pi)**4*Fint1int * cl_phi_interp(sizeL2) * cl_phi_interp(sizeL3) * lcl_interp(sizeellplusL3) * dotprod(ellplusL3, L2) * dotprod(ellplusL3, L3)   
         else:
             N2_B = 0
 
@@ -130,7 +132,7 @@ phi_norm['TT'], phi_curl_norm['TT'] = cs.norm_quad.qtt('lens',lmax,rlmin,rlmax,l
 
 for lensingL in lensingLarray:
     L1, L2, L3 = make_equilateral_L(lensingL)
-    integrand_function = integrand_generator(L1, L2, L3, cl_phi_interp, lcl_interp, ctot_interp, ellmin, ellmax)
+    integrand_function = integrand_generator(L1, L2, L3, cl_phi_interp, lcl_interp, ctot_interp, ellmin, ellmax) #second ps should be ctot_interp but changed to noiseless to cf giorgio's results 6/9/24
     integrator = vegas.Integrator(integration_limits)
     result = integrator(integrand_function, nitn=15, neval=1000)
 
@@ -139,13 +141,17 @@ for lensingL in lensingLarray:
     result_mean = mean(result)
 
     # Now calculate the normalisation for this lensingL. then normalise result. Recall we're using phi everywhere as the low L N2 result was computed for phi.
+    # Also note we will want to plot N2 for kappa though for comparison.
     norm_factor_phi = phi_norm['TT'][int(lensingL)]
     result_mean *= norm_factor_phi
 
     output_vegas.append(result_mean)
 
-# Change outputs to numpy arrays
-output_vegas = np.array(output_vegas)
+# Change outputs to numpy arrays Factor of 3 for all equi. changed 1/(2pi)^4 as two from measure and two from term A and B def.
+output_vegas = 3*np.array(output_vegas)
+
+#Convert to kappa
+#output_vegas *= (0.5*(lensingLarray*(lensingLarray+1)))^3
 
 # Save results
 # Create directory
