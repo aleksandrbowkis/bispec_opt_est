@@ -7,7 +7,7 @@ sys.path.append('/home/amb257/software/cmplx_cmblensplus/wrap')
 sys.path.append('/home/amb257/software/cmplx_cmblensplus/utils')
 # from cmblensplus/wrap/
 import curvedsky as cs
-from scipy.integrate import quad
+
 
 # Parameters
 lmax = 2000
@@ -91,29 +91,23 @@ def integrand_generator(L1, L2, L3, cl_phi_interp, lcl_interp, ocl_interp, ellmi
 
     def integrand_N2(ell):
         
-        #print(ell.shape)
         sizeell = vect_modulus(ell)
         ellminusL1 = ell - L1
         sizeellminusL1 = vect_modulus(ellminusL1)
-        ellminusL2 = ell - L2
-        sizeellminusL2 = vect_modulus(ellminusL2)
-        ellminusL3 = ell - L3
-        sizeellminusL3 = vect_modulus(ellminusL3)
         ellplusL3 = ell + L3
         sizeellplusL3 = vect_modulus(ellplusL3)
-        sizeL1 = vect_modulus(L1)
         sizeL2 = vect_modulus(L2)
         sizeL3 = vect_modulus(L3)
 
         if sizeell <= ellmax and sizeell >= ellmin and  sizeellminusL1 >= ellmin and sizeellminusL1 <= ellmax :
             Fint1int = bigF(ell, L1-ell, sizeell, sizeellminusL1, lcl_interp, ocl_interp)
-            N2_A = 2/(2*np.pi)**4*Fint1int * cl_phi_interp(sizeL2) * cl_phi_interp(sizeL3) * lcl_interp(sizeell) * dotprod(ell, L2) * dotprod(ell, L3)   
+            N2_A = 2/((2*np.pi)**2)*Fint1int * cl_phi_interp(sizeL2) * cl_phi_interp(sizeL3) * lcl_interp(sizeell) * dotprod(ell, L2) * dotprod(ell, L3)   
         else:
             N2_A = 0
 
         if sizeell <= ellmax  and sizeell >= ellmin and  sizeellminusL1 >= ellmin and sizeellplusL3 <= ellmax and sizeellplusL3 >= ellmin and sizeellminusL1  <= ellmax:
             Fint1int = bigF(ell, L1-ell, sizeell, sizeellminusL1, lcl_interp, ocl_interp)
-            N2_B = - 2/(2*np.pi)**4*Fint1int * cl_phi_interp(sizeL2) * cl_phi_interp(sizeL3) * lcl_interp(sizeellplusL3) * dotprod(ellplusL3, L2) * dotprod(ellplusL3, L3)   
+            N2_B = - 2/((2*np.pi)**2)*Fint1int * cl_phi_interp(sizeL2) * cl_phi_interp(sizeL3) * lcl_interp(sizeellplusL3) * dotprod(ellplusL3, L2) * dotprod(ellplusL3, L3)   
         else:
             N2_B = 0
 
@@ -123,7 +117,7 @@ def integrand_generator(L1, L2, L3, cl_phi_interp, lcl_interp, ocl_interp, ellmi
 ################ Main #############
 
 integration_limits = [[ellmin, ellmax], [ellmin, ellmax]] 
-lensingLarray = np.arange(1,200,10)
+lensingLarray = np.arange(1,1000,20)
 output_vegas = []
 
 # Now calculate the normalisation. Outside loop as unnecessary to repeatedly calculate.
@@ -147,7 +141,7 @@ for lensingL in lensingLarray:
 
     output_vegas.append(result_mean)
 
-# Change outputs to numpy arrays Factor of 3 for all equi. changed 1/(2pi)^4 as two from measure and two from term A and B def.
+# Change outputs to numpy arrays Factor of 3 for all equi.
 output_vegas = 3*np.array(output_vegas)
 
 #Convert to kappa

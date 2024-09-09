@@ -38,13 +38,13 @@ theta_fwhm = 1.4 #In arcminutes
 sigma_noise = 10 #in muK-arcmin
 arcmin2radfactor = np.pi / 60.0 / 180.0
 noise_cl = (sigma_noise*arcmin2radfactor/Tcmb)**2*np.exp(L*(L+1.)*(theta_fwhm*arcmin2radfactor)**2/np.log(2.)/8.)
-ocl = np.copy(lcl) + noise_cl
+ctot = np.copy(lcl) + noise_cl
 
 # Interpolation functions for cl_kappa and ucl
 cl_phi_interp = interp1d(L, cl_phi, kind='cubic', bounds_error=False, fill_value="extrapolate")
 lcl_interp = interp1d(L, lcl, kind='cubic', bounds_error=False, fill_value="extrapolate")
-ctot_interp = interp1d(L, ocl, kind='cubic', bounds_error=False, fill_value="extrapolate")
-ctotprime = np.gradient(ocl, L)
+ctot_interp = interp1d(L, ctot, kind='cubic', bounds_error=False, fill_value="extrapolate")
+ctotprime = np.gradient(ctot, L)
 ctotprime_interp = interp1d(L, ctotprime, kind='cubic', bounds_error=False, fill_value="extrapolate")
 lclprime = np.gradient(lcl, L)
 lclprime_interp = interp1d(L, lclprime, kind='cubic', bounds_error=False, fill_value="extrapolate")
@@ -63,9 +63,8 @@ os.makedirs(output_dir, exist_ok=True)
 np.save(os.path.join(output_dir, "L.npy"), L)
 np.save(os.path.join(output_dir, "cl_phi.npy"), cl_phi)
 np.save(os.path.join(output_dir, "cl_phi.npy"), cl_phi)
+np.save(os.path.join(output_dir, "ucl.npy"), ucl)
 np.save(os.path.join(output_dir, "lcl.npy"), lcl)
-np.save(os.path.join(output_dir, "lcl.npy"), lcl)
-np.save(os.path.join(output_dir, "ctot.npy"), ocl)
 np.save(os.path.join(output_dir, "ctot.npy"), ctot)
 np.save(os.path.join(output_dir, "ctotprime.npy"), ctotprime)
 np.save(os.path.join(output_dir, "lclprime.npy"), lclprime)
