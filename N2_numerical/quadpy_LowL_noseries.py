@@ -1,9 +1,10 @@
 """ 
     Program to compute the low L approximation to the N2 bias term in reconstructed CMB lensing bispectrum.
+    Uses quadpy
 """
 
 import numpy as np
-from scipy.integrate import dblquad
+import quadpy
 from scipy.interpolate import interp1d
 import sys, os
 sys.path.append('/home/amb257/software/cmplx_cmblensplus/wrap')
@@ -112,16 +113,19 @@ phi_norm['TT'], phi_curl_norm['TT'] = cs.norm_quad.qtt('lens',lmax,rlmin,rlmax,l
 lensingLarray = np.arange(2,1000,20)
 output = []
 
+# Define integration scheme
+
 for lensingL in lensingLarray:
     L1, L2, L3 = make_equilateral_L(lensingL)
-    result, error = dblquad(lambda x, y: integrand_N2(x, y, L1, L2, L3, lcl_interp, ctot_interp,cl_phi_interp), ellmin, ellmax, lambda x: ellmin, lambda x: ellmax, epsrel=1e-5)
-    result *= phi_norm['TT'][int(lensingL)]
+    result = quadpy.double_adapt(lambda x, y: integrand_N2(x, y, L1, L2, L3, lcl_interp, ctot_interp,cl_phi_interp), [ellmin, ellmax], [ellmin, ellmax], scheme)
+    value = result.value
+    value *= phi_norm['TT'][int(lensingL)]
 
-    output.append(result)
+    output.append(value)
 
 print(output)
 
 output_dir = "scipy_results"
 os.makedirs(output_dir, exist_ok=True)
 np.save(os.path.join(output_dir, "L.npy"), lensingLarray)
-np.save(os.path.join(output_dir, "scipy_lowL_noseries.npy"), output)
+np.save(os.path.join(output_dir, "quadpy_lowL_noseries.npy"), output)
