@@ -1,5 +1,6 @@
 import numpy as np
-import vegas 
+import vegas
+print(vegas.__version__)
 from scipy.integrate import quad
 from scipy.interpolate import interp1d
 import sys, os
@@ -17,25 +18,27 @@ ellmin, ellmax = 2, 2000
 rlmin, rlmax = 2, 2000 # CMB multipole range for reconstruction
 
 # Define the directory where power spec are stored
-input_dir = "../N2_numerical/power_spec"
+input_dir = "../Power_spectra"
 
 # Load the power spec
-L = np.load(os.path.join(input_dir, "L.npy"))
-cl_phi = np.load(os.path.join(input_dir, "cl_phi.npy"))
-lcl = np.load(os.path.join(input_dir, "lcl.npy"))
-ctot = np.load(os.path.join(input_dir, "ctot.npy"))
-
+L = np.arange(0,2000+1,1)
+ucl = np.loadtxt(os.path.join(input_dir, "unlensed_clTT_lmax8000.txt"))
+lcl = np.loadtxt(os.path.join(input_dir, "glensed_clTT_lmax8000.txt"))
+ctot = np.loadtxt(os.path.join(input_dir, "lensed_clTT_lmax8000.txt")) # Using nonoise lensed power spectra atm cf Alba's numerical results
+ucl = ucl[0:2001]
+lcl = lcl[0:2001]
+ctot = ctot[0:2001]
 # Now interpolate them
-cl_phi_interp = interp1d(L, cl_phi, kind='cubic', bounds_error=False, fill_value="extrapolate")
+#cl_phi_interp = interp1d(L, cl_phi, kind='cubic', bounds_error=False, fill_value="extrapolate")
+ucl_interp = interp1d(L, ucl, kind='cubic', bounds_error=False, fill_value="extrapolate")
 lcl_interp = interp1d(L, lcl, kind='cubic', bounds_error=False, fill_value="extrapolate")
 ctot_interp = interp1d(L, ctot, kind='cubic', bounds_error=False, fill_value="extrapolate")
 
 ################# Functions ##################
 
-def dotprod(l1,l2):
-    #Computes the dot product of two (multipole) vectors.
-    l1dotl2 = l1[0]*l2[0] + l1[1]*l2[1]
-    return l1dotl2
+def dotprod(l1, l2):
+    # Computes the dot product of two sets of vectors. Note now vectorised so can compute dotproduct of sets of vectors rather than two single vectors.
+    return np.sum(l1 * l2, axis=1)
 
 def vect_modulus(l1):
     #Computes the modulus of an input vector
@@ -81,29 +84,55 @@ def make_fold_L(sizeL):
     return L1, L2, L3
 
 ################ Integrand function (low L no series expansion) ############
+@vegas.batchintegrand
+def integrand_N0_batched(x, L1, L3, lcl_interp, ctot_interp, ucl_interp ellmin, ellmax):
+    x = np.atleast_2d(x) # Make x into a 2d array as expected in code below
+    # x[:, 0] is the x-component of ell, x[:, 1] is the y-component of ell
+    ell = np.stack((x[:, 0], x[:, 1]), axis=-1)
 
-def integrand_N0(ell, L1, L3, lcl_interp, ctot_interp, ellmin, ellmax):
+    sizeell = np.sqrt(np.sum(ell**2, axis=1)) # Allows modulus for each point in the 2D array of points to be computed (N rows of points with 2 columns, for x and y coordinates of a single point)
+    L1minusell = L1[np.newaxis, :] - ell # Broadcasting allows every point that vegas sends in batch mode from the same L1
+    sizeL1minusell = np.sqrt(np.sum(L1minusell**2, axis=1))
+    ellplusL3 = ell + L3[np.newaxis, :]
+    sizeellplusL3 = np.sqrt(np.sum(ellplusL3**2, axis=1))
+
+    # Apply the same logic as before, but now handle arrays
+    mask = (ellmin <= sizeell) & (sizeell <= ellmax) & \
+           (ellmin <= sizeL1minusell) & (sizeL1minusell <= ellmax) & \
+           (ellmin <= sizeellplusL3) & (sizeellplusL3 <= ellmax)
+
+    integrand = np.zeros_like(sizeell)
     
-    sizeell = vect_modulus(ell)
-    L1minusell = L1-ell
-    sizeL1minusell = vect_modulus(L1minusell)
-    ellplusL3 = ell + L3
-    sizeellplusL3 = vect_modulus(ellplusL3)
-
-    if ellmin <= sizeell <= ellmax and ellmin <= sizeL1minusell <= ellmax and ellmin <= sizeellplusL3 <= ellmax:
-        F1 = bigF(ell, L1-ell, sizeell, sizeL1minusell, lcl_interp, ctot_interp)
-        F13 = bigF(L1-ell, ell+L3, sizeL1minusell, sizeellplusL3, lcl_interp, ctot_interp)
-        F3 = bigF(-ell, ell+L3, sizeell, sizeellplusL3, lcl_interp, ctot_interp)
-        integrand = 1 / (2*np.pi)**2 * 8 * F1 * F13 * F3 * ctot_interp(sizeell) * ctot_interp(sizeL1minusell) * ctot_interp(sizeellplusL3)
-    else:
-        integrand = 0
+    valid_idx = np.where(mask)  # Only compute valid integrands
+    F1 = bigF(ell[valid_idx], L1minusell[valid_idx], sizeell[valid_idx], sizeL1minusell[valid_idx], lcl_interp, ctot_interp)
+    F13 = bigF(L1minusell[valid_idx], ellplusL3[valid_idx], sizeL1minusell[valid_idx], sizeellplusL3[valid_idx], lcl_interp, ctot_interp)
+    F3 = bigF(-ell[valid_idx], ellplusL3[valid_idx], sizeell[valid_idx], sizeellplusL3[valid_idx], lcl_interp, ctot_interp)
+    
+    integrand[valid_idx] = (1 / (2*np.pi)**2 * 8 * F1 * F13 * F3 * ucl_interp(sizeell[valid_idx]) * ucl_interp(sizeL1minusell[valid_idx]) * ucl_interp(sizeellplusL3[valid_idx]))
+    
+    integrand = np.atleast_1d(integrand)
 
     return integrand
+
+# Function to calculate the result for each L
+def compute_for_L(lensingL, lcl_interp, ctot_interp, ucl_interp, ellmin, ellmax, phi_norm):
+    L1, L2, L3 = make_equilateral_L(lensingL)
+    integration_limits = [[ellmin, ellmax], [ellmin, ellmax]]
+    integrator = vegas.Integrator(integration_limits)
+    
+    result = integrator(lambda x: integrand_N0_batched(x, L1, L3, lcl_interp, ctot_interp, ucl_interp, ellmin, ellmax), nitn=10, neval=1000)
+    from gvar import mean
+    result_mean = mean(result)
+    
+    # Apply normalization
+    norm_factor_phi = phi_norm['TT'][int(lensingL)]
+    result_mean *= norm_factor_phi**3
+    return result_mean.item()
 
 ################ Main code ####################
 
 integration_limits = [[ellmin, ellmax], [ellmin, ellmax]] #2D integral over CMB multipoles ell
-lensingLarray = np.arange(1,2000,5)
+lensingLarray = np.arange(1,2000,100)
 output = []
 
 # Now calculate the normalisation. Outside loop as unnecessary to repeatedly calculate.
@@ -112,25 +141,25 @@ phi_norm['TT'], phi_curl_norm['TT'] = cs.norm_quad.qtt('lens',lmax,rlmin,rlmax,l
 
 for lensingL in lensingLarray:
     L1, L2, L3 = make_equilateral_L(lensingL)
-    integrand_function = lambda ell: integrand_N0(ell, L1, L3, lcl_interp, ctot_interp, ellmin, ellmax) 
     integrator = vegas.Integrator(integration_limits)
-    result = integrator(integrand_function, nitn=5, neval=1000)
-
+    
+    result = integrator(lambda x: integrand_N0_batched(x, L1, L3, lcl_interp, ctot_interp, ucl_interp, ellmin, ellmax), nitn=3, neval=1000)
+    print(result)
     # Now output results
     from gvar import mean
     result_mean = mean(result)
-
-    # Now calculate the normalisation for this lensingL. then normalise result. Recall we're using phi everywhere as the low L N2 result was computed for phi.
-    # Also note we will want to plot N2 for kappa though for comparison.
+    print(f"Lensing L: {lensingL}, Result Mean Shape: {result_mean.shape}, Value: {result_mean}")
+    # Now calculate the normalisation for this lensingL. then normalise result.
     norm_factor_phi = phi_norm['TT'][int(lensingL)]
     result_mean *= norm_factor_phi**3 # Equilateral so all L equivalent.
-
+    result_mean = result_mean.item()
     output.append(result_mean)
+    print(np.shape(output))
 
 output = np.array(output) # Convert to numpy array
 # Save results
 # Create directory
-output_dir = "N0_numerical_vegas"
+output_dir = "N0_numerical_BATCHvegas"
 os.makedirs(output_dir, exist_ok=True)
 np.save(os.path.join(output_dir, "L_N0_num.npy"), lensingLarray)
 np.save(os.path.join(output_dir, "N0_numerical_equi.npy"), output)
