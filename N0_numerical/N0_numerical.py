@@ -8,6 +8,7 @@ sys.path.append('/home/amb257/software/cmplx_cmblensplus/wrap')
 sys.path.append('/home/amb257/software/cmplx_cmblensplus/utils')
 # from cmblensplus/wrap/
 import curvedsky as cs
+import multiprocessing as mp
 
 
 # Parameters
@@ -85,7 +86,7 @@ def make_fold_L(sizeL):
 
 ################ Integrand function (low L no series expansion) ############
 @vegas.batchintegrand
-def integrand_N0_batched(x, L1, L3, lcl_interp, ctot_interp, ucl_interp ellmin, ellmax):
+def integrand_N0_batched(x, L1, L3, lcl_interp, ctot_interp, ucl_interp, ellmin, ellmax):
     x = np.atleast_2d(x) # Make x into a 2d array as expected in code below
     # x[:, 0] is the x-component of ell, x[:, 1] is the y-component of ell
     ell = np.stack((x[:, 0], x[:, 1]), axis=-1)
@@ -120,7 +121,7 @@ def compute_for_L(lensingL, lcl_interp, ctot_interp, ucl_interp, ellmin, ellmax,
     integration_limits = [[ellmin, ellmax], [ellmin, ellmax]]
     integrator = vegas.Integrator(integration_limits)
     
-    result = integrator(lambda x: integrand_N0_batched(x, L1, L3, lcl_interp, ctot_interp, ucl_interp, ellmin, ellmax), nitn=10, neval=1000)
+    result = integrator(lambda x: integrand_N0_batched(x, L1, L3, lcl_interp, ctot_interp, ucl_interp, ellmin, ellmax), nitn=2, neval=1000)
     from gvar import mean
     result_mean = mean(result)
     
@@ -130,36 +131,23 @@ def compute_for_L(lensingL, lcl_interp, ctot_interp, ucl_interp, ellmin, ellmax,
     return result_mean.item()
 
 ################ Main code ####################
+def main():
+    lensingLarray = np.arange(1, 2000, 100)
+    output_dir = "N0_numerical_BATCHvegas"
+    os.makedirs(output_dir, exist_ok=True)
 
-integration_limits = [[ellmin, ellmax], [ellmin, ellmax]] #2D integral over CMB multipoles ell
-lensingLarray = np.arange(1,2000,100)
-output = []
+    # Calculate normalization (outside the parallel loop)
+    phi_norm, phi_curl_norm = {}, {}
+    phi_norm['TT'], phi_curl_norm['TT'] = cs.norm_quad.qtt('lens', lmax, rlmin, rlmax, lcl, ctot, lfac='')
 
-# Now calculate the normalisation. Outside loop as unnecessary to repeatedly calculate.
-phi_norm, phi_curl_norm = {}, {}
-phi_norm['TT'], phi_curl_norm['TT'] = cs.norm_quad.qtt('lens',lmax,rlmin,rlmax,lcl,ctot,lfac='')
+    with mp.Pool(processes=mp.cpu_count()) as pool:
+        results = pool.starmap(compute_for_L, [(lensingL, lcl_interp, ctot_interp, ucl_interp, ellmin, ellmax, phi_norm) for lensingL in lensingLarray])
 
-for lensingL in lensingLarray:
-    L1, L2, L3 = make_equilateral_L(lensingL)
-    integrator = vegas.Integrator(integration_limits)
-    
-    result = integrator(lambda x: integrand_N0_batched(x, L1, L3, lcl_interp, ctot_interp, ucl_interp, ellmin, ellmax), nitn=3, neval=1000)
-    print(result)
-    # Now output results
-    from gvar import mean
-    result_mean = mean(result)
-    print(f"Lensing L: {lensingL}, Result Mean Shape: {result_mean.shape}, Value: {result_mean}")
-    # Now calculate the normalisation for this lensingL. then normalise result.
-    norm_factor_phi = phi_norm['TT'][int(lensingL)]
-    result_mean *= norm_factor_phi**3 # Equilateral so all L equivalent.
-    result_mean = result_mean.item()
-    output.append(result_mean)
-    print(np.shape(output))
 
-output = np.array(output) # Convert to numpy array
-# Save results
-# Create directory
-output_dir = "N0_numerical_BATCHvegas"
-os.makedirs(output_dir, exist_ok=True)
-np.save(os.path.join(output_dir, "L_N0_num.npy"), lensingLarray)
-np.save(os.path.join(output_dir, "N0_numerical_equi.npy"), output)
+    # Convert the results to a numpy array and save
+    output = np.array(results)
+    np.save(os.path.join(output_dir, "L_N0_num.npy"), lensingLarray)
+    np.save(os.path.join(output_dir, "N0_numerical_equi.npy"), output)
+
+if __name__ == '__main__':
+    main()
