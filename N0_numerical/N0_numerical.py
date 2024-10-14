@@ -24,15 +24,18 @@ input_dir = "../Power_spectra"
 # Load the power spec
 L = np.arange(0,2000+1,1)
 ucl = np.loadtxt(os.path.join(input_dir, "unlensed_clTT_lmax8000.txt"))
-lcl = np.loadtxt(os.path.join(input_dir, "glensed_clTT_lmax8000.txt"))
-ctot = np.loadtxt(os.path.join(input_dir, "lensed_clTT_lmax8000.txt")) # Using nonoise lensed power spectra atm cf Alba's numerical results
+gcl = np.loadtxt(os.path.join(input_dir, "glensed_clTT_lmax8000.txt"))
+ctot = np.loadtxt(os.path.join(input_dir, "lensed_clTT_lmax8000.txt")) # Using nonoise lensed power spectra atm cf Alba's numerical results. Change to ctot inc noise later.
+lcl = np.loadtxt(os.path.join(input_dir, "lensed_clTT_lmax8000.txt"))
 ucl = ucl[0:2001]
+gcl = gcl[0:2001]
 lcl = lcl[0:2001]
 ctot = ctot[0:2001]
 # Now interpolate them
 #cl_phi_interp = interp1d(L, cl_phi, kind='cubic', bounds_error=False, fill_value="extrapolate")
 ucl_interp = interp1d(L, ucl, kind='cubic', bounds_error=False, fill_value="extrapolate")
 lcl_interp = interp1d(L, lcl, kind='cubic', bounds_error=False, fill_value="extrapolate")
+gcl_interp = interp1d(L, gcl, kind='cubic', bounds_error=False, fill_value="extrapolate")
 ctot_interp = interp1d(L, ctot, kind='cubic', bounds_error=False, fill_value="extrapolate")
 
 ################# Functions ##################
@@ -84,9 +87,9 @@ def make_fold_L(sizeL):
 
     return L1, L2, L3
 
-################ Integrand function (low L no series expansion) ############
+# Integrand function use vegas batchintegrand to evaluate integral at multiple points
 @vegas.batchintegrand
-def integrand_N0_batched(x, L1, L3, lcl_interp, ctot_interp, ucl_interp, ellmin, ellmax):
+def integrand_N0_batched(x, L1, L3, gcl_interp, ctot_interp, lcl_interp, ellmin, ellmax):
     x = np.atleast_2d(x) # Make x into a 2d array as expected in code below
     # x[:, 0] is the x-component of ell, x[:, 1] is the y-component of ell
     ell = np.stack((x[:, 0], x[:, 1]), axis=-1)
@@ -105,23 +108,23 @@ def integrand_N0_batched(x, L1, L3, lcl_interp, ctot_interp, ucl_interp, ellmin,
     integrand = np.zeros_like(sizeell)
     
     valid_idx = np.where(mask)  # Only compute valid integrands
-    F1 = bigF(ell[valid_idx], L1minusell[valid_idx], sizeell[valid_idx], sizeL1minusell[valid_idx], lcl_interp, ctot_interp)
-    F13 = bigF(L1minusell[valid_idx], ellplusL3[valid_idx], sizeL1minusell[valid_idx], sizeellplusL3[valid_idx], lcl_interp, ctot_interp)
-    F3 = bigF(-ell[valid_idx], ellplusL3[valid_idx], sizeell[valid_idx], sizeellplusL3[valid_idx], lcl_interp, ctot_interp)
+    F1 = bigF(ell[valid_idx], L1minusell[valid_idx], sizeell[valid_idx], sizeL1minusell[valid_idx], gcl_interp, ctot_interp)
+    F13 = bigF(L1minusell[valid_idx], ellplusL3[valid_idx], sizeL1minusell[valid_idx], sizeellplusL3[valid_idx], gcl_interp, ctot_interp)
+    F3 = bigF(-ell[valid_idx], ellplusL3[valid_idx], sizeell[valid_idx], sizeellplusL3[valid_idx], gcl_interp, ctot_interp)
     
-    integrand[valid_idx] = (1 / (2*np.pi)**2 * 8 * F1 * F13 * F3 * ucl_interp(sizeell[valid_idx]) * ucl_interp(sizeL1minusell[valid_idx]) * ucl_interp(sizeellplusL3[valid_idx]))
+    integrand[valid_idx] = (1 / (2*np.pi)**2 * 8 * F1 * F13 * F3 * lcl_interp(sizeell[valid_idx]) * lcl_interp(sizeL1minusell[valid_idx]) * lcl_interp(sizeellplusL3[valid_idx]))
     
     integrand = np.atleast_1d(integrand)
 
     return integrand
 
 # Function to calculate the result for each L
-def compute_for_L(lensingL, lcl_interp, ctot_interp, ucl_interp, ellmin, ellmax, phi_norm):
+def compute_for_L(lensingL, gcl_interp, ctot_interp, lcl_interp, ellmin, ellmax, phi_norm):
     L1, L2, L3 = make_equilateral_L(lensingL)
     integration_limits = [[ellmin, ellmax], [ellmin, ellmax]]
     integrator = vegas.Integrator(integration_limits)
     
-    result = integrator(lambda x: integrand_N0_batched(x, L1, L3, lcl_interp, ctot_interp, ucl_interp, ellmin, ellmax), nitn=2, neval=1000)
+    result = integrator(lambda x: integrand_N0_batched(x, L1, L3, gcl_interp, ctot_interp, lcl_interp, ellmin, ellmax), nitn=10, neval=1000)
     from gvar import mean
     result_mean = mean(result)
     
@@ -132,7 +135,8 @@ def compute_for_L(lensingL, lcl_interp, ctot_interp, ucl_interp, ellmin, ellmax,
 
 ################ Main code ####################
 def main():
-    lensingLarray = np.arange(1, 2000, 100)
+    samples = 100 # or fully sampled: int(rlmax-rlmin+1)
+    lensingLarray = np.linspace(ellmin, ellmax, samples)
     output_dir = "N0_numerical_BATCHvegas"
     os.makedirs(output_dir, exist_ok=True)
 
@@ -140,8 +144,9 @@ def main():
     phi_norm, phi_curl_norm = {}, {}
     phi_norm['TT'], phi_curl_norm['TT'] = cs.norm_quad.qtt('lens', lmax, rlmin, rlmax, lcl, ctot, lfac='')
 
+    # Use multiprocessing to parallelise over the lensing L's (calculate integral for each lensing L) 
     with mp.Pool(processes=mp.cpu_count()) as pool:
-        results = pool.starmap(compute_for_L, [(lensingL, lcl_interp, ctot_interp, ucl_interp, ellmin, ellmax, phi_norm) for lensingL in lensingLarray])
+        results = pool.starmap(compute_for_L, [(lensingL, gcl_interp, ctot_interp,lcl_interp, ellmin, ellmax, phi_norm) for lensingL in lensingLarray])
 
 
     # Convert the results to a numpy array and save
