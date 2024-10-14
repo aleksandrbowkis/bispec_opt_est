@@ -1,53 +1,41 @@
-#### Import modules
 import numpy as np
 import vegas 
+from scipy.integrate import quad
 from scipy.interpolate import interp1d
-import healpy as hp
-import sys
+import sys, os
 sys.path.append('/home/amb257/software/cmplx_cmblensplus/wrap')
 sys.path.append('/home/amb257/software/cmplx_cmblensplus/utils')
 # from cmblensplus/wrap/
 import curvedsky as cs
 
-################ Parameters ###############
 
-lmax = 3000
+# Parameters
+lmax = 2000
 Tcmb  = 2.726e6    # CMB temperature in microkelvin?
-rlmin, rlmax = 2, 3000 # CMB multipole range for reconstruction
-nside = 2048
 bstype = 'equi'
-nsims = 448 # Number of simulations to average over (in sets of 3) 
-ellmin = 2 
-ellmax = 3000 ##### check!!!! vs sims
+ellmin, ellmax = 2, 2000
+rlmin, rlmax = 2, 2000 # CMB multipole range for reconstruction
 
-################ Power spectra ################
+# Define the directory where power spec are stored
+input_dir = "../N2_numerical/power_spec"
 
-ls, cl_unl, cl_len, cl_phi = np.loadtxt('/home/amb257/kappa_bispec/make_sims_parallel/camb_lencl_phi.txt')
-L = np.arange(rlmax+1)
-Lfac = (L*(L+1.) / 2 )**2
-lcl = cl_len[0:rlmax+1] / Tcmb**2
-ucl = cl_unl[0:rlmax+1] / Tcmb**2 #dimless unlensed T Cl
-cl_kappa = Lfac * cl_phi[0:3001]
+# Load the power spec
+L = np.load(os.path.join(input_dir, "L.npy"))
+cl_phi = np.load(os.path.join(input_dir, "cl_phi.npy"))
+lcl = np.load(os.path.join(input_dir, "lcl.npy"))
+ctot = np.load(os.path.join(input_dir, "ctot.npy"))
 
-#Make noise power spectra
-theta_fwhm = 1.4 #In arcminutes
-sigma_noise = 10 #in muK-arcmin
-arcmin2radfactor = np.pi / 60.0 / 180.0
-noise_cl = (sigma_noise*arcmin2radfactor/Tcmb)**2*np.exp(L*(L+1.)*(theta_fwhm*arcmin2radfactor)**2/np.log(2.)/8.)
-ocl = np.copy(lcl) + noise_cl
-
-# Interpolation functions for cl_kappa and ucl
-cl_kappa_interp = interp1d(L, cl_kappa, kind='cubic', bounds_error=False, fill_value="extrapolate")
-ucl_interp = interp1d(L, ucl, kind='cubic', bounds_error=False, fill_value="extrapolate")
+# Now interpolate them
+cl_phi_interp = interp1d(L, cl_phi, kind='cubic', bounds_error=False, fill_value="extrapolate")
 lcl_interp = interp1d(L, lcl, kind='cubic', bounds_error=False, fill_value="extrapolate")
-ocl_interp = interp1d(L, ocl, kind='cubic', bounds_error=False, fill_value="extrapolate")
+ctot_interp = interp1d(L, ctot, kind='cubic', bounds_error=False, fill_value="extrapolate")
 
 ################# Functions ##################
 
-def dotprod(l1, l2):
-    # This allows dot product calculations between two vectors or batches of vectors
-    return np.sum(l1 * l2, axis=-1)
-
+def dotprod(l1,l2):
+    #Computes the dot product of two (multipole) vectors.
+    l1dotl2 = l1[0]*l2[0] + l1[1]*l2[1]
+    return l1dotl2
 
 def vect_modulus(l1):
     #Computes the modulus of an input vector
@@ -92,94 +80,57 @@ def make_fold_L(sizeL):
 
     return L1, L2, L3
 
-######### Main Code ########
+################ Integrand function (low L no series expansion) ############
 
-def norm_generator(L):
-    """
-    Closure for calculating normalising factor for eqn (3.12) in Bispectrum paper
-    """
-    def norm_integrand(ell):
-        Lminusell = L - ell
-        sizeLminusell = vect_modulus(Lminusell)
-        sizeell = vect_modulus(ell)
-
-        valid = (sizeell <= ellmax) & (sizeLminusell <= ellmax) & (sizeell >= ellmin) & (sizeLminusell >= ellmin)
-        results = np.zeros(ell.shape[0])
-
-        if np.any(valid):
-            valid_ell = ell[valid]
-            valid_sizeell = sizeell[valid]
-            valid_sizeLminusell = sizeLminusell[valid]
-
-            FintLint = bigF(valid_ell, L - valid_ell, valid_sizeell, valid_sizeLminusell, lcl_interp, ocl_interp)
-            lowerfintLint = response_func(lcl_interp, valid_ell, L - valid_ell, valid_sizeell, valid_sizeLminusell)
-            results[valid] = 1/(2*np.pi) * FintLint * lowerfintLint
-        return results
-    return norm_integrand
-
-def integrand_generator(L1, L3, ocl_interp, ellmin, ellmax):
-    """
-    Closure for capturing fixed L1, L2, L3 etc. and returning the N0 bias.
-    """
-
-    def integrand_N1(ell):
-        sizeell = vect_modulus(ell)
-        ellminusL1 = ell - L1
-        sizeellminusL1 = vect_modulus(ellminusL1)
-        ellplusL3 = ell + L3
-        sizeellplusL3 = vect_modulus(ellplusL3)
-        
-        valid = (sizeell <= ellmax) & (sizeellminusL1 <= ellmax) & (sizeell >= ellmin) & (sizeellminusL1 >= ellmin)
-        results = np.zeros(ell.shape[0])  # Ensure output shape is correct
-
-        if np.any(valid):
-            valid_ell = ell[valid]
-            valid_sizeell = sizeell[valid]
-            valid_sizeellminusL1 = sizeellminusL1[valid]
-            valid_sizeellplusL3 = sizeellplusL3[valid]
-            Fint1int = bigF(valid_ell, L1 - valid_ell, valid_sizeell, valid_sizeellminusL1, lcl_interp, ocl_interp)
-            F1int3int = bigF(L1 - valid_ell, L3 + valid_ell, valid_sizeellminusL1, valid_sizeellplusL3, lcl_interp, ocl_interp)
-            Fint3int = bigF(-valid_ell, L3 + valid_ell, valid_sizeell, valid_sizeellplusL3, lcl_interp, ocl_interp)
-            results[valid] = 8 / (2 * np.pi)**2 * ocl_interp(valid_sizeell) * ocl_interp(valid_sizeellminusL1) * ocl_interp(valid_sizeellplusL3) * Fint1int * F1int3int * Fint3int
-        return results
-    return integrand_N1
-
-
-########## Main ########
-
-integration_limits = [[ellmin, ellmax], [ellmin, ellmax]]
-
-bin_edges = np.array([0, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1100, 1200, 1300, 1400, 1500, 1600, 1700, 1800, 1900])
-bin_mid = 0.5*(bin_edges[1:] + bin_edges[:-1])
-
-kappa_norm, kappa_curl_norm = {}, {}
-kappa_norm['TT'], kappa_curl_norm['TT'] = cs.norm_quad.qtt('lens',lmax,rlmin,rlmax,lcl,ocl,lfac='k')
-
-# Calculate normalisation (N.B. for equi all norms are the same. for folded they won't be).
-for i in bin_mid:
-    L1, L2, L3 = make_equilateral_L(i)
-    sizeL1 = vect_modulus(L1)
-    sizeL2 = np.int(vect_modulus(L2))
-    sizeL3 = np.int(vect_modulus(L3))
-    norm_integrand_function = norm_generator(L1)
-    integrator = vegas.Integrator(integration_limits)
-    norm_integral1 = integrator(norm_integrand_function, nitn=10, neval=1000)
-    norm1 = sizeL1**2 / (2 * norm_integral1)
-    norm_integral2 = integrator(norm_integrand_function, nitn=10, neval=1000)
-    norm2 = sizeL2**2 / (2 * norm_integral2)
-    norm_integral3 = integrator(norm_integrand_function, nitn=10, neval=1000)
-    norm3 = sizeL3**2 / (2 * norm_integral3)
-
-                    
-for index, item in enumerate(bin_mid):
-    L1, L2, L3 = make_equilateral_L(item)
-    sizeL1 = int(vect_modulus(L1))
-    sizeL2 = int(vect_modulus(L2))
-    sizeL3 = int(vect_modulus(L3))
-    integrand_function = integrand_generator(L1, L3, ocl_interp, ellmin, ellmax)
+def integrand_N0(ell, L1, L3, lcl_interp, ctot_interp, ellmin, ellmax):
     
-    output = integrator(integrand_function, nitn=10, neval=1000)
-    N0_final = norm1 * norm2 * norm3 * output
-    print(item, N0_final[0].mean)
+    sizeell = vect_modulus(ell)
+    L1minusell = L1-ell
+    sizeL1minusell = vect_modulus(L1minusell)
+    ellplusL3 = ell + L3
+    sizeellplusL3 = vect_modulus(ellplusL3)
 
+    if ellmin <= sizeell <= ellmax and ellmin <= sizeL1minusell <= ellmax and ellmin <= sizeellplusL3 <= ellmax:
+        F1 = bigF(ell, L1-ell, sizeell, sizeL1minusell, lcl_interp, ctot_interp)
+        F13 = bigF(L1-ell, ell+L3, sizeL1minusell, sizeellplusL3, lcl_interp, ctot_interp)
+        F3 = bigF(-ell, ell+L3, sizeell, sizeellplusL3, lcl_interp, ctot_interp)
+        integrand = 1 / (2*np.pi)**2 * 8 * F1 * F13 * F3 * ctot_interp(sizeell) * ctot_interp(sizeL1minusell) * ctot_interp(sizeellplusL3)
+    else:
+        integrand = 0
 
+    return integrand
+
+################ Main code ####################
+
+integration_limits = [[ellmin, ellmax], [ellmin, ellmax]] #2D integral over CMB multipoles ell
+lensingLarray = np.arange(1,2000,5)
+output = []
+
+# Now calculate the normalisation. Outside loop as unnecessary to repeatedly calculate.
+phi_norm, phi_curl_norm = {}, {}
+phi_norm['TT'], phi_curl_norm['TT'] = cs.norm_quad.qtt('lens',lmax,rlmin,rlmax,lcl,ctot,lfac='')
+
+for lensingL in lensingLarray:
+    L1, L2, L3 = make_equilateral_L(lensingL)
+    integrand_function = lambda ell: integrand_N0(ell, L1, L3, lcl_interp, ctot_interp, ellmin, ellmax) 
+    integrator = vegas.Integrator(integration_limits)
+    result = integrator(integrand_function, nitn=5, neval=1000)
+
+    # Now output results
+    from gvar import mean
+    result_mean = mean(result)
+
+    # Now calculate the normalisation for this lensingL. then normalise result. Recall we're using phi everywhere as the low L N2 result was computed for phi.
+    # Also note we will want to plot N2 for kappa though for comparison.
+    norm_factor_phi = phi_norm['TT'][int(lensingL)]
+    result_mean *= norm_factor_phi**3 # Equilateral so all L equivalent.
+
+    output.append(result_mean)
+
+output = np.array(output) # Convert to numpy array
+# Save results
+# Create directory
+output_dir = "N0_numerical_vegas"
+os.makedirs(output_dir, exist_ok=True)
+np.save(os.path.join(output_dir, "L_N0_num.npy"), lensingLarray)
+np.save(os.path.join(output_dir, "N0_numerical_equi.npy"), output)

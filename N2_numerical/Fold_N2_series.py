@@ -23,7 +23,7 @@ nside = 2048
 bstype = 'fold'
 nsims = 448 # Number of simulations to average over (in sets of 3) 
 ellmin = 2 
-ellmax = 2000 ##### check!!!! vs sims
+ellmax = 3000 ##### 30/09/24 CHANGED TO 3000 CF SIMULATED RESULTS
 
 ################ Power spectra ################
 
@@ -40,7 +40,7 @@ theta_fwhm = 1.4 #In arcminutes
 sigma_noise = 10 #in muK-arcmin
 arcmin2radfactor = np.pi / 60.0 / 180.0
 noise_cl = (sigma_noise*arcmin2radfactor/Tcmb)**2*np.exp(L*(L+1.)*(theta_fwhm*arcmin2radfactor)**2/np.log(2.)/8.)
-ocl = np.copy(lcl) #+ noise_cl #removed noise to cf w giorgio's result.
+ocl = np.copy(lcl) + noise_cl #INC NOISE CF SIMULATED RESULTS NB EQUI NOISELESS ATM TO CF GIORGIO
 
 # Interpolation functions for cl_kappa and ucl
 cl_phi_interp = interp1d(L, cl_phi, kind='cubic', bounds_error=False, fill_value="extrapolate")
@@ -54,16 +54,17 @@ lcldoubleprime = np.gradient(lclprime, L)
 lcldoubleprime_interp = interp1d(L, lcldoubleprime, kind='cubic', bounds_error=False, fill_value="extrapolate")
 
 # Define a the integrand
-# Note cf mathematica we add a factor of QE normalisation,1/(2pi)^2 from integral not expanded and 3 for different permutations of L
+# Note cf mathematica we add a factor of QE normalisation,1/(2pi)^2 from integral not expanded 
 def integrand_fn(lensingL, ell, cl_phi_interp, lcl_interp, ctot_interp, ctotprime_interp, lclprime_interp, lcldoubleprime_interp):
 
-    integrand = (1/(2*np.pi)**2)*3  * cl_phi_interp(lensingL) ** 2 * 1 / (32 * ctot_interp(ell) ** 3) * lensingL ** 3 * (lensingL+1)**3  * np.pi * (
-        ell ** 2 * ctotprime_interp(ell) * (8 * lcl_interp(ell) ** 2 + 6 * ell * lcl_interp(ell) * lclprime_interp(ell) + ell ** 2 * lclprime_interp(ell) ** 2) 
-        + ctot_interp(ell) * (32 * lcl_interp(ell) ** 2 + 6 * ell ** 2 * lclprime_interp(ell) ** 2 + ell * lcl_interp(ell) * (41 * lclprime_interp(ell) + 3 * ell * lcldoubleprime_interp(ell)))
+    integrand = (1/(2*np.pi)**2) * cl_phi_interp(lensingL) ** 2 * 1 / (256 * ctot_interp(ell) ** 3) * 3 * lensingL ** 3 * (lensingL+1)**3  * np.pi * (
+        16 * ctot_interp(ell) * lcl_interp(ell) ** 2 + 16 * ell * lcl_interp(ell)**2 * ctotprime_interp(ell) + 7 * ell * ctot_interp(ell) * lcl_interp(ell) * lclprime_interp(ell) + 
+         18 * ell**2 * lcl_interp(ell) * ctotprime_interp(ell) * lclprime_interp(ell) + 6 * ell**2 * ctot_interp(ell) * lclprime_interp(ell)**2 +
+         5 * ell**3 * ctotprime_interp(ell) * lclprime_interp(ell)**2 - 3 * ell**2 * ctot_interp(ell) * lcl_interp(ell) * lcldoubleprime_interp(ell)
     )
     return integrand
 
-lensingLarray = np.arange(1,200,10)
+lensingLarray = np.arange(1,1000,10)
 output_quad = []
 output_direct = []
 
@@ -111,6 +112,6 @@ output_quad = np.array(output_quad)
 output_direct = np.array(output_direct)
 
 # Save outputs
-np.savetxt('TEST_quad_equi.txt', (lensingLarray, output_quad))
-np.savetxt('TEST_direct_equi.txt', (lensingLarray, output_direct))
-np.savetxt('norm_phi.txt', (L[:lmax+1],phi_norm['TT']))
+np.savetxt('fix_TEST_quad_fold.txt', (lensingLarray, output_quad))
+np.savetxt('TEST_direct_fold.txt', (lensingLarray, output_direct))
+
