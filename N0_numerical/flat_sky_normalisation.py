@@ -3,6 +3,9 @@
 
 import numpy as np
 import vegas as vg
+import multiprocessing as mp
+import sys, os
+from scipy.interpolate import interp1d
 
 ###### Parameters ####
 
@@ -50,11 +53,12 @@ def bigF(l1, l2, l1size, l2size, CTlens, Ctotal):
     bigF = response_func(CTlens, l1, l2, l1size, l2size) / ( 2 * Ctotal(l1size) * Ctotal(l2size))
     return bigF
 
-@vegas.batchintegrand
-def integrand(x, L gcl_interp, ctot_interp):
+@vg.batchintegrand
+def integrand(x, L, gcl_interp, ctot_interp):
     x = np.atleast_2d(x) # Make x into a 2d array as expected in code below
     # x[:, 0] is the x-component of ell, x[:, 1] is the y-component of ell
     ell = np.stack((x[:, 0], x[:, 1]), axis=-1)
+    L = np.array([L, 0])
     sizeell = np.sqrt(np.sum(ell**2, axis=1)) # Allows modulus for each point in the 2D array of points to be computed (N rows of points with 2 columns, for x and y coordinates of a single point)
     Lminusell = L[np.newaxis, :] - ell # Broadcasting allows every point that vegas sends in batch mode from the same L1
     sizeLminusell = np.sqrt(np.sum(Lminusell**2, axis=1))
@@ -75,16 +79,35 @@ def integrand(x, L gcl_interp, ctot_interp):
 
 def compute_normalisation(L, gcl_interp, ctot_interp, ellmin, ellmax):
     integration_limits = [[ellmin, ellmax], [ellmin, ellmax]]
-    integrator = vegas.Integrator(integration_limits)
+    integrator = vg.Integrator(integration_limits)
     
-    result = integrator(lambda x: integrand(x, L, gcl_interp, ctot_interp, , ellmin, ellmax), nitn=1, neval=1000)
+    result = integrator(lambda x: integrand(x, L, gcl_interp, ctot_interp), nitn=10, neval=10000)
 
     from gvar import mean
     result_mean = mean(result)
+    if isinstance(result_mean, np.ndarray):
+        result_mean = result_mean[0]
 
-    norm = 1 / result_mean
-    return norm
+    print(result_mean)
+    if result_mean != 0:
+        return 1./result_mean
+    else:
+        return 0.0
 
 ##### Main #####
+def main():
+    L_output = np.arange(0, 2001, 1)
+    output_dir = "normalisation"
+    os.makedirs(output_dir, exist_ok=True)
 
-L = np.arange()
+    # Use multiprocessing to parallelise over the lensing L's (calculate integral for each lensing L) 
+    with mp.Pool(processes=mp.cpu_count()) as pool:
+        results = pool.starmap(compute_normalisation, [(L, gcl_interp, ctot_interp, ellmin, ellmax) for L in L_output])
+
+    # Convert the results to a numpy array and save
+    output = np.array(results)
+    np.save(os.path.join(output_dir, "L_norm.npy"), L_output)
+    np.save(os.path.join(output_dir, "flat_sky_norm.npy"), output)
+
+if __name__ == '__main__':
+    main()
