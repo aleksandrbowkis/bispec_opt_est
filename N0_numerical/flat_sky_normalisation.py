@@ -87,3 +87,4 @@ def compute_normalisation(L, gcl_interp, ctot_interp, ellmin, ellmax):
 
 ##### Main #####
 
+L = np.arange()

@@ -1,6 +1,5 @@
 import numpy as np
 import vegas
-print(vegas.__version__)
 from scipy.integrate import quad
 from scipy.interpolate import interp1d
 import sys, os
@@ -101,7 +100,7 @@ def integrand_N0_batched(x, L1, L3, gcl_interp, ctot_interp, lcl_interp, ellmin,
     ellplusL3 = ell + L3[np.newaxis, :]
     sizeellplusL3 = np.sqrt(np.sum(ellplusL3**2, axis=1))
 
-    # Apply the same logic as before, but now handle arrays
+    # mask out disallowed regions
     mask = (ellmin <= sizeell) & (sizeell <= ellmax) & \
            (ellmin <= sizeL1minusell) & (sizeL1minusell <= ellmax) & \
            (ellmin <= sizeellplusL3) & (sizeellplusL3 <= ellmax)
@@ -130,7 +129,7 @@ def compute_for_L(lensingL, gcl_interp, ctot_interp, lcl_interp, ellmin, ellmax,
     result_mean = mean(result)
     
     # Apply normalization
-    norm_factor_phi = phi_norm['TT'][int(lensingL)]
+    norm_factor_phi = phi_norm[int(lensingL)]
     result_mean *= norm_factor_phi**3
     return result_mean.item()
 
@@ -147,18 +146,17 @@ def main():
     reconstruction_l = output_L = [2,2000]
     inverse_lcl = np.zeros(lmax+1)
     inverse_lcl[2:] = 1. / lcl[2:] #check what this does with 0,1 multipoles
-    print(np.shape(inverse_lcl))
     grid_lcl = fs.utils.cl2c2d(nx,ny,D,2,lmax,lcl)
     grid_inverse_lcl = fs.utils.cl2c2d(nx,ny,D,2,lmax,inverse_lcl)
     #multipoles on grid
     lx, ly, el, il = fs.utils.elarrays(nx,ny,D)
     kl = el*(el+1.)/2.  
-    bn = samples
-
+    bn = np.shape(lcl)[0]
     phi_norm_grid, phi_curl_norm_grid = {}, {}
     phi_norm_grid['TT'], phi_curl_norm_grid['TT'] = fs.norm_lens.qtt(nx,ny,D,reconstruction_l,grid_inverse_lcl,grid_lcl,output_L)
     phi_norm = fs.utils.c2d2bcl(nx,ny,D,kl**2*phi_norm_grid['TT'],bn,output_L)
-    print('norm',phi_norm)
+    phi_norm_interp = interp1d(L, phi_norm, kind='cubic', bounds_error=False, fill_value="extrapolate")
+    print(np.shape(phi_norm))
 
     # Use multiprocessing to parallelise over the lensing L's (calculate integral for each lensing L) 
     with mp.Pool(processes=mp.cpu_count()) as pool:
@@ -169,6 +167,8 @@ def main():
     output = np.array(results)
     np.save(os.path.join(output_dir, "L_N0_num.npy"), lensingLarray)
     np.save(os.path.join(output_dir, "N0_numerical_equi.npy"), output)
+
+    np.savetxt("flat_sky_norm.txt", (L, phi_norm))
 
 if __name__ == '__main__':
     main()
