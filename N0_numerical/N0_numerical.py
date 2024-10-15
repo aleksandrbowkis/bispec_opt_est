@@ -8,6 +8,7 @@ sys.path.append('/home/amb257/software/cmplx_cmblensplus/wrap')
 sys.path.append('/home/amb257/software/cmplx_cmblensplus/utils')
 # from cmblensplus/wrap/
 import curvedsky as cs
+import flatsky as fs
 import multiprocessing as mp
 
 
@@ -124,7 +125,7 @@ def compute_for_L(lensingL, gcl_interp, ctot_interp, lcl_interp, ellmin, ellmax,
     integration_limits = [[ellmin, ellmax], [ellmin, ellmax]]
     integrator = vegas.Integrator(integration_limits)
     
-    result = integrator(lambda x: integrand_N0_batched(x, L1, L3, gcl_interp, ctot_interp, lcl_interp, ellmin, ellmax), nitn=10, neval=1000)
+    result = integrator(lambda x: integrand_N0_batched(x, L1, L3, gcl_interp, ctot_interp, lcl_interp, ellmin, ellmax), nitn=1, neval=1000)
     from gvar import mean
     result_mean = mean(result)
     
@@ -141,8 +142,23 @@ def main():
     os.makedirs(output_dir, exist_ok=True)
 
     # Calculate normalization (outside the parallel loop)
-    phi_norm, phi_curl_norm = {}, {}
-    phi_norm['TT'], phi_curl_norm['TT'] = cs.norm_quad.qtt('lens', lmax, rlmin, rlmax, lcl, ctot, lfac='')
+    nx, ny = 512, 512
+    D  = np.array([nx,ny]) / 60.*np.pi/180.
+    reconstruction_l = output_L = [2,2000]
+    inverse_lcl = np.zeros(lmax+1)
+    inverse_lcl[2:] = 1. / lcl[2:] #check what this does with 0,1 multipoles
+    print(np.shape(inverse_lcl))
+    grid_lcl = fs.utils.cl2c2d(nx,ny,D,2,lmax,lcl)
+    grid_inverse_lcl = fs.utils.cl2c2d(nx,ny,D,2,lmax,inverse_lcl)
+    #multipoles on grid
+    lx, ly, el, il = fs.utils.elarrays(nx,ny,D)
+    kl = el*(el+1.)/2.  
+    bn = samples
+
+    phi_norm_grid, phi_curl_norm_grid = {}, {}
+    phi_norm_grid['TT'], phi_curl_norm_grid['TT'] = fs.norm_lens.qtt(nx,ny,D,reconstruction_l,grid_inverse_lcl,grid_lcl,output_L)
+    phi_norm = fs.utils.c2d2bcl(nx,ny,D,kl**2*phi_norm_grid['TT'],bn,output_L)
+    print('norm',phi_norm)
 
     # Use multiprocessing to parallelise over the lensing L's (calculate integral for each lensing L) 
     with mp.Pool(processes=mp.cpu_count()) as pool:
