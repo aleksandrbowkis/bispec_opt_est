@@ -38,6 +38,9 @@ lcl_interp = interp1d(L, lcl, kind='cubic', bounds_error=False, fill_value="extr
 gcl_interp = interp1d(L, gcl, kind='cubic', bounds_error=False, fill_value="extrapolate")
 ctot_interp = interp1d(L, ctot, kind='cubic', bounds_error=False, fill_value="extrapolate")
 
+# Load the normalisation
+flat_sky_norm = np.load("/home/amb257/kappa_bispec/bispec_opt_est/N0_numerical/normalisation/flat_sky_norm.npy")
+flat_sky_norm_interp = interp1d(L, flat_sky_norm, kind='cubic', bounds_error=False, fill_value="extrapolate")
 ################# Functions ##################
 
 def dotprod(l1, l2):
@@ -129,8 +132,10 @@ def compute_for_L(lensingL, gcl_interp, ctot_interp, lcl_interp, ellmin, ellmax,
     result_mean = mean(result)
     
     # Apply normalization
-    norm_factor_phi = phi_norm[int(lensingL)]
+    norm_factor_phi = phi_norm(lensingL)
     result_mean *= norm_factor_phi**3
+    if isinstance(result_mean, np.ndarray):
+        result_mean = result_mean[0]
     return result_mean.item()
 
 ################ Main code ####################
@@ -140,35 +145,21 @@ def main():
     output_dir = "N0_numerical_BATCHvegas"
     os.makedirs(output_dir, exist_ok=True)
 
-    # Calculate normalization (outside the parallel loop)
-    nx, ny = 512, 512
-    D  = np.array([nx,ny]) / 60.*np.pi/180.
-    reconstruction_l = output_L = [2,2000]
-    inverse_lcl = np.zeros(lmax+1)
-    inverse_lcl[2:] = 1. / lcl[2:] #check what this does with 0,1 multipoles
-    grid_lcl = fs.utils.cl2c2d(nx,ny,D,2,lmax,lcl)
-    grid_inverse_lcl = fs.utils.cl2c2d(nx,ny,D,2,lmax,inverse_lcl)
-    #multipoles on grid
-    lx, ly, el, il = fs.utils.elarrays(nx,ny,D)
-    kl = el*(el+1.)/2.  
-    bn = np.shape(lcl)[0]
-    phi_norm_grid, phi_curl_norm_grid = {}, {}
-    phi_norm_grid['TT'], phi_curl_norm_grid['TT'] = fs.norm_lens.qtt(nx,ny,D,reconstruction_l,grid_inverse_lcl,grid_lcl,output_L)
-    phi_norm = fs.utils.c2d2bcl(nx,ny,D,kl**2*phi_norm_grid['TT'],bn,output_L)
-    phi_norm_interp = interp1d(L, phi_norm, kind='cubic', bounds_error=False, fill_value="extrapolate")
-    print(np.shape(phi_norm))
+    phi_norm, phi_curl_norm= {}, {}
+    phi_norm['TT'],  phi_curl_norm['TT'] = cs.norm_quad.qtt('lens',lmax,rlmin,rlmax,lcl,ctot,lfac='')
+    np.savetxt("./normalisation/curved_norm.txt", (L, phi_norm['TT']))
+    #fs.utils.c2d2bcl(nx,ny,D,kl**2*phi_norm_grid['TT'],bn,output_L)
 
     # Use multiprocessing to parallelise over the lensing L's (calculate integral for each lensing L) 
     with mp.Pool(processes=mp.cpu_count()) as pool:
-        results = pool.starmap(compute_for_L, [(lensingL, gcl_interp, ctot_interp,lcl_interp, ellmin, ellmax, phi_norm) for lensingL in lensingLarray])
+        results = pool.starmap(compute_for_L, [(lensingL, gcl_interp, ctot_interp,lcl_interp, ellmin, ellmax, flat_sky_norm_interp) for lensingL in lensingLarray])
 
 
     # Convert the results to a numpy array and save
     output = np.array(results)
     np.save(os.path.join(output_dir, "L_N0_num.npy"), lensingLarray)
     np.save(os.path.join(output_dir, "N0_numerical_equi.npy"), output)
-
-    np.savetxt("flat_sky_norm.txt", (L, phi_norm))
+    print()
 
 if __name__ == '__main__':
     main()
