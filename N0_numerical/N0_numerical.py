@@ -30,7 +30,7 @@ lcl = np.loadtxt(os.path.join(input_dir, "lensed_clTT_lmax8000.txt"))
 ucl = ucl[0:2001]
 gcl = gcl[0:2001]
 lcl = lcl[0:2001]
-ctot = ctot[0:2001]
+# ctot = ctot[0:2001]
 
 #Make noise power spectra
 theta_fwhm = 1.4 #In arcminutes
@@ -48,6 +48,7 @@ ctot_interp = interp1d(L, ctot, kind='cubic', bounds_error=False, fill_value="ex
 
 # Load the normalisation
 flat_sky_norm = np.load("/home/amb257/kappa_bispec/bispec_opt_est/N0_numerical/normalisation/flat_sky_norm.npy")
+print('shape', np.shape(flat_sky_norm))
 flat_sky_norm_interp = interp1d(L, flat_sky_norm, kind='cubic', bounds_error=False, fill_value="extrapolate")
 ################# Functions ##################
 
@@ -132,7 +133,7 @@ def integrand_N0_batched(x, L1, L3, gcl_interp, ctot_interp, lcl_interp, ellmin,
 # Function to calculate the result for each L
 def compute_for_L(lensingL, gcl_interp, ctot_interp, lcl_interp, ellmin, ellmax, phi_norm):
     L1, L2, L3 = make_equilateral_L(lensingL)
-    integration_limits = [[ellmin, ellmax], [ellmin, ellmax]]
+    integration_limits = [[-ellmax, ellmax], [-ellmax, ellmax]]
     integrator = vegas.Integrator(integration_limits)
     
     result = integrator(lambda x: integrand_N0_batched(x, L1, L3, gcl_interp, ctot_interp, lcl_interp, ellmin, ellmax), nitn=1, neval=1000)
