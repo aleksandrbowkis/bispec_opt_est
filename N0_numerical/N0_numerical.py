@@ -25,12 +25,20 @@ input_dir = "../Power_spectra"
 L = np.arange(0,2000+1,1)
 ucl = np.loadtxt(os.path.join(input_dir, "unlensed_clTT_lmax8000.txt"))
 gcl = np.loadtxt(os.path.join(input_dir, "glensed_clTT_lmax8000.txt"))
-ctot = np.loadtxt(os.path.join(input_dir, "lensed_clTT_lmax8000.txt")) # Using nonoise lensed power spectra atm cf Alba's numerical results. Change to ctot inc noise later.
+#ctot = np.loadtxt(os.path.join(input_dir, "lensed_clTT_lmax8000.txt")) 
 lcl = np.loadtxt(os.path.join(input_dir, "lensed_clTT_lmax8000.txt"))
 ucl = ucl[0:2001]
 gcl = gcl[0:2001]
 lcl = lcl[0:2001]
 ctot = ctot[0:2001]
+
+#Make noise power spectra
+theta_fwhm = 1.4 #In arcminutes
+sigma_noise = 10 #in muK-arcmin
+arcmin2radfactor = np.pi / 60.0 / 180.0
+noise_cl = (sigma_noise*arcmin2radfactor/Tcmb)**2*np.exp(L*(L+1.)*(theta_fwhm*arcmin2radfactor)**2/np.log(2.)/8.)
+ctot = np.copy(lcl) + noise_cl
+
 # Now interpolate them
 #cl_phi_interp = interp1d(L, cl_phi, kind='cubic', bounds_error=False, fill_value="extrapolate")
 ucl_interp = interp1d(L, ucl, kind='cubic', bounds_error=False, fill_value="extrapolate")

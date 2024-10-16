@@ -20,10 +20,17 @@ input_dir = "../Power_spectra"
 
 # Load the power spec
 L = np.arange(0,2000+1,1)
-gcl = np.loadtxt(os.path.join(input_dir, "glensed_clTT_lmax8000.txt"))
-ctot = np.loadtxt(os.path.join(input_dir, "lensed_clTT_lmax8000.txt")) # Using nonoise lensed power spectra atm cf Alba's numerical results. Change to ctot inc noise later.
+gcl = np.loadtxt(os.path.join(input_dir, "lensed_clTT_lmax8000.txt"))
+lcl = np.loadtxt(os.path.join(input_dir, "lensed_clTT_lmax8000.txt")) # Using nonoise lensed power spectra atm cf Alba's numerical results. Change to ctot inc noise later.
 gcl = gcl[0:2001]
-ctot = ctot[0:2001]
+lcl = lcl[0:2001]
+
+#Make noise power spectra
+theta_fwhm = 1.4 #In arcminutes
+sigma_noise = 10 #in muK-arcmin
+arcmin2radfactor = np.pi / 60.0 / 180.0
+noise_cl = (sigma_noise*arcmin2radfactor/Tcmb)**2*np.exp(L*(L+1.)*(theta_fwhm*arcmin2radfactor)**2/np.log(2.)/8.)
+ctot = np.copy(lcl) + noise_cl
 # Now interpolate them
 gcl_interp = interp1d(L, gcl, kind='cubic', bounds_error=False, fill_value="extrapolate")
 ctot_interp = interp1d(L, ctot, kind='cubic', bounds_error=False, fill_value="extrapolate")
@@ -62,7 +69,7 @@ def integrand(x, L, gcl_interp, ctot_interp):
     sizeell = np.sqrt(np.sum(ell**2, axis=1)) # Allows modulus for each point in the 2D array of points to be computed (N rows of points with 2 columns, for x and y coordinates of a single point)
     Lminusell = L[np.newaxis, :] - ell # Broadcasting allows every point that vegas sends in batch mode from the same L1
     sizeLminusell = np.sqrt(np.sum(Lminusell**2, axis=1))
-
+    print('lminus',Lminusell)
     # mask out disallowed regions
     mask = (ellmin <= sizeell) & (sizeell <= ellmax) & \
            (ellmin <= sizeLminusell) & (sizeLminusell <= ellmax)
@@ -81,14 +88,13 @@ def compute_normalisation(L, gcl_interp, ctot_interp, ellmin, ellmax):
     integration_limits = [[ellmin, ellmax], [ellmin, ellmax]]
     integrator = vg.Integrator(integration_limits)
     
-    result = integrator(lambda x: integrand(x, L, gcl_interp, ctot_interp), nitn=10, neval=10000)
+    result = integrator(lambda x: integrand(x, L, gcl_interp, ctot_interp), nitn=1, neval=100)
 
     from gvar import mean
     result_mean = mean(result)
     if isinstance(result_mean, np.ndarray):
         result_mean = result_mean[0]
 
-    print(result_mean)
     if result_mean != 0:
         return 1./result_mean
     else:
@@ -96,7 +102,7 @@ def compute_normalisation(L, gcl_interp, ctot_interp, ellmin, ellmax):
 
 ##### Main #####
 def main():
-    L_output = np.arange(0, 2001, 1)
+    L_output = np.arange(0, 5, 5)
     output_dir = "normalisation"
     os.makedirs(output_dir, exist_ok=True)
 
@@ -107,7 +113,7 @@ def main():
     # Convert the results to a numpy array and save
     output = np.array(results)
     np.save(os.path.join(output_dir, "L_norm.npy"), L_output)
-    np.save(os.path.join(output_dir, "flat_sky_norm.npy"), output)
+    np.save(os.path.join(output_dir, "lensedcl_flat_sky_norm.npy"), output)
 
 if __name__ == '__main__':
     main()
