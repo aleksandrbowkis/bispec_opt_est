@@ -60,7 +60,7 @@ def bigF(l1, l2, l1size, l2size, CTlens, Ctotal):
     bigF = response_func(CTlens, l1, l2, l1size, l2size) / ( 2 * Ctotal(l1size) * Ctotal(l2size))
     return bigF
 
-#@vg.batchintegrand
+@vg.batchintegrand
 def integrand(x, L, gcl_interp, ctot_interp):
     x = np.atleast_2d(x) # Make x into a 2d array as expected in code below
     # x[:, 0] is the x-component of ell, x[:, 1] is the y-component of ell
@@ -88,7 +88,7 @@ def compute_normalisation(L, gcl_interp, ctot_interp, ellmin, ellmax):
     integration_limits = [[-ellmax, ellmax], [-ellmax, ellmax]]
     integrator = vg.Integrator(integration_limits)
     
-    result = integrator(lambda x: integrand(x, L, gcl_interp, ctot_interp), nitn=10, neval=10000)
+    result = integrator(lambda x: integrand(x, L, gcl_interp, ctot_interp), nitn=15, neval=10000)
 
     from gvar import mean
     result_mean = mean(result)
