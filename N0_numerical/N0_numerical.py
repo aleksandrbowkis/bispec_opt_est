@@ -136,7 +136,7 @@ def compute_for_L(lensingL, gcl_interp, ctot_interp, lcl_interp, ellmin, ellmax,
     integration_limits = [[-ellmax, ellmax], [-ellmax, ellmax]]
     integrator = vegas.Integrator(integration_limits)
     
-    result = integrator(lambda x: integrand_N0_batched(x, L1, L3, gcl_interp, ctot_interp, lcl_interp, ellmin, ellmax), nitn=1, neval=1000)
+    result = integrator(lambda x: integrand_N0_batched(x, L1, L3, gcl_interp, ctot_interp, lcl_interp, ellmin, ellmax), nitn=12, neval=15000)
     from gvar import mean
     result_mean = mean(result)
     
