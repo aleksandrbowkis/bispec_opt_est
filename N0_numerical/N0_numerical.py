@@ -154,11 +154,6 @@ def main():
     output_dir = "N0_numerical_BATCHvegas"
     os.makedirs(output_dir, exist_ok=True)
 
-    phi_norm, phi_curl_norm= {}, {}
-    phi_norm['TT'],  phi_curl_norm['TT'] = cs.norm_quad.qtt('lens',lmax,rlmin,rlmax,lcl,ctot,lfac='')
-    np.savetxt("./normalisation/curved_norm.txt", (L, phi_norm['TT']))
-    #fs.utils.c2d2bcl(nx,ny,D,kl**2*phi_norm_grid['TT'],bn,output_L)
-
     # Use multiprocessing to parallelise over the lensing L's (calculate integral for each lensing L) 
     with mp.Pool(processes=mp.cpu_count()) as pool:
         results = pool.starmap(compute_for_L, [(lensingL, gcl_interp, ctot_interp,lcl_interp, ellmin, ellmax, flat_sky_norm_interp) for lensingL in lensingLarray])

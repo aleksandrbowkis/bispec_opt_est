@@ -103,11 +103,11 @@ def make_fold_L(sizeL):
 
 
 @vegas.batchintegrand
-def integrand_N1(x L1, L2, gcl_interp, ctot_interp, lcl_interp, cphi_interp, ellmin, ellmax):
+def integrand_N1(x, L1, L2, gcl_interp, ctot_interp, lcl_interp, cphi_interp, ellmin, ellmax):
     """
-    Computes the integrand. Masks out regions
+    Computes the integrand. Masks out regions outside integration region.
     """
-
+    x = np.atleast_2d(x) # Make x into a 2d array as expected in code below
     # x[:, 0] is the x-component of l1, x[:, 1] is the y-component of l2 then x[:, 2] is x component of l2 etc
     l1 = np.stack((x[:, 0], x[:, 1]))
     l2 = np.stack((x[:, 2], x[:, 3]))
@@ -139,63 +139,62 @@ def integrand_N1(x L1, L2, gcl_interp, ctot_interp, lcl_interp, cphi_interp, ell
     valid_idx = np.where(mask)[0]
 
     # Weight functions
-    F_l1_L1minusl1 = bigF(l1, L1minusl1, sizel1, sizeL1minusl1, gcl_interp, ctot_interp)
-    F_l2_L2minusl2 = bigF(l2, L2minusl2, sizel2, sizeL2minusl2, gcl_interp, ctot_interp)
-    F_L2minusl2_L1plusl2 = bigF(L2minusl2, L1plusl2, sizeL2minusl2, sizel1plusl2, gcl_interp, ctot_interp)
+    F_l1_L1minusl1 = bigF(l1[valid_idx], L1minusl1[valid_idx], sizel1[valid_idx], sizeL1minusl1[valid_idx], gcl_interp, ctot_interp)
+    F_l2_L2minusl2 = bigF(l2[valid_idx], L2minusl2[valid_idx], sizel2[valid_idx], sizeL2minusl2[valid_idx], gcl_interp, ctot_interp)
+    F_L2minusl2_L1plusl2 = bigF(L2minusl2[valid_idx], L1plusl2[valid_idx], sizeL2minusl2[valid_idx], sizel1plusl2[valid_idx], gcl_interp, ctot_interp)
 
     # Response functions
-    f_l1_L1minusl1 = response_func(lcl_interp, l1, L1minusl1, sizel1, sizeL1minusl1)
-    f_l2_negL1plusl2 = response_func(lcl_interp, l2, -L1plusl2, sizel2, sizeL1plusl2)
-    f_L1minusl1_negL1plusl2 = response_func(lcl_interp, L1minusl1, -L1plusl2, sizeL1minusl1, sizeL1plusl2)
-    f_l1_l2 = response_func(lcl_interp, l1, l2, sizel1, sizel2)
+    f_l1_L1minusl1 = response_func(lcl_interp, l1[valid_idx], L1minusl1[valid_idx], sizel1[valid_idx], sizeL1minusl1[valid_idx])
+    f_l2_negL1plusl2 = response_func(lcl_interp, l2[valid_idx], -L1plusl2[valid_idx], sizel2[valid_idx], sizeL1plusl2[valid_idx])
+    f_L1minusl1_negL1plusl2 = response_func(lcl_interp, L1minusl1[valid_idx], -L1plusl2[valid_idx], sizeL1minusl1[valid_idx], sizeL1plusl2[valid_idx])
+    f_l1_l2 = response_func(lcl_interp, l1[valid_idx], l2[valid_idx], sizel1[valid_idx], sizel2[valid_idx])
 
     # Compute power spectra
     CTT_L2minusl2 = gcl_interp(sizeL2minusl2[valid_idx])
-    Cphi_L1 = cphi_interp(sizeL1[valid_idx]) 
+    Cphi_L1 = cphi_interp(sizeL1) 
     Cphi_l1plusl2 = cphi_interp(sizel1plusl2[valid_idx])  
 
     # Combine all terms
-    term1 = Cphi_L1[valid_idx] * f_l1_L1minusl1[valid_idx] * f_l2_negL1plusl2[valid_idx]
-    term2 = 2 * Cphi_l1plusl2[valid_idx] * f_L1minusl1_negL1plusl2[valid_idx] * f_l1_l2[valid_idx]
+    term1 = Cphi_L1 * f_l1_L1minusl1 * f_l2_negL1plusl2
+    term2 = 2 * Cphi_l1plusl2 * f_L1minusl1_negL1plusl2 * f_l1_l2
     
-    result = 4 * F_l1_L1minusl1[valid_idx] * F_l2_L2minusl2[valid_idx] * F_L2minusl2_L1plusl2[valid_idx] * CTT_L2minusl2[valid_idx] * (term1 + term2)
-    
-    return result
-
-
-# Integrand function use vegas batchintegrand to evaluate integral at multiple points
-@vegas.batchintegrand
-def vegas_integrand(x, L1, L2, gcl_interp, ctot_interp, lcl_interp, ellmin, ellmax):
-    # x[:, 0] is the x-component of l1, x[:, 1] is the y-component of l2 then x[:, 2] is x component of l2 etc
-    l1 = np.column_stack((x[:, 0], x[:, 1]))
-    l2 = np.column_stack((x[:, 2], x[:, 3]))
-
-    # Now compute the relevant vectors
-    L1minusl1 = L1[np.newaxis, :] - l1
-    L2minusl2 = L2[np.newaxis, :] - l2
-    L1plusl2 = L1[np.newaxis, :] + l2
-    l1plusl2 = l1 + l2
-
-    sizel1 = np.sqrt(np.sum(sizel1**2, axis=1))
-    sizel2 = np.sqrt(np.sum(sizel2**2, axis=1))
-    sizeL1minusl1 = np.sqrt(np.sum(L1minusl1**2, axis=1))
-    sizeL2minusl2 = np.sqrt(np.sum(L2minusl2**2, axis=1))
-    sizeL1plusl2 = np.sqrt(np.sum(L1plusl2**2, axis=1))
-    sizel1plusl2 = np.sqrt(np.sum(l1plusl2**2, axis=1))
-
-    # mask out disallowed regions
-    mask = (ellmin <= sizel1) & (sizel1 <= ellmax) & \
-           (ellmin <= sizel2) & (sizel2 <= ellmax) & \
-           (ellmin <= sizeL1minusl1) & (sizeL1minusl1 <= ellmax) & \
-           (ellmin <= sizeL2minusl2) & (sizeL2minusl2 <= ellmax) & \
-           (ellmin <= sizeL1plusl2) & (sizeL1plusl2 <= ellmax) & \
-           (ellmin <= sizel1plusl2) & (sizel1plusl2 <= ellmax)
-    
-    result = np.zeros(len(x))
-
-    # Compute for valid indices
-    valid_idx = np.where(mask)[0]
-    if len(valid_idx) > 0:
-        result[valid_idx] = integrand_N1(l1[valid_idx], l2[valid_idx], L1[valid_idx], L1minusl1[valid_idx], L2minusl2[valid_idx],L2minusl2[valid_idx], L1plusl2[valid_idx],gcl_interp, ctot_interp, lcl_interp)
+    result[valid_idx] = 4 * F_l1_L1minusl1 * F_l2_L2minusl2 * F_L2minusl2_L1plusl2 * CTT_L2minusl2 * (term1 + term2)
     
     return result
+
+# Function to calculate the result for each L
+def compute_for_L(lensingL, gcl_interp, ctot_interp, lcl_interp, cphi_interp, ellmin, ellmax, phi_norm):
+    L1, L2, L3 = make_equilateral_L(lensingL)
+    integration_limits = [[-ellmax, ellmax], [-ellmax, ellmax], [-ellmax, ellmax], [-ellmax, ellmax]]
+    integrator = vegas.Integrator(integration_limits)
+    
+    result = integrator(lambda x: integrand_N1(x, L1, L2, gcl_interp, ctot_interp, lcl_interp, cphi_interp, ellmin, ellmax), nitn=10, neval=1e5)
+    from gvar import mean
+    result_mean = mean(result)
+    
+    # Apply normalization
+    norm_factor_phi = phi_norm(lensingL)
+    result_mean *= norm_factor_phi**3
+    if isinstance(result_mean, np.ndarray):
+        result_mean = result_mean[0]
+    return result_mean.item()
+
+################ Main code ####################
+def main():
+    samples = 100 # or fully sampled: int(rlmax-rlmin+1)
+    lensingLarray = np.linspace(ellmin, ellmax, samples)
+    output_dir = "N1_numerical_results"
+    os.makedirs(output_dir, exist_ok=True)
+
+    # Use multiprocessing to parallelise over the lensing L's (calculate integral for each lensing L) 
+    with mp.Pool(processes=mp.cpu_count()) as pool:
+        results = pool.starmap(compute_for_L, [(lensingL, gcl_interp, ctot_interp,lcl_interp, cphi_interp, ellmin, ellmax, flat_sky_norm_interp) for lensingL in lensingLarray])
+
+    # Convert the results to a numpy array and save
+    output = np.array(results)
+    np.save(os.path.join(output_dir, "L_N1_num.npy"), lensingLarray)
+    np.save(os.path.join(output_dir, "N1_numerical_equi.npy"), output)
+    print()
+
+if __name__ == '__main__':
+    main()
