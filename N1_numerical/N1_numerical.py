@@ -181,7 +181,7 @@ def compute_for_L(lensingL, gcl_interp, ctot_interp, lcl_interp, cphi_interp, el
 
 ################ Main code ####################
 def main():
-    samples = 100 # or fully sampled: int(rlmax-rlmin+1)
+    samples = int(rlmax-rlmin+1) # or fully sampled: int(rlmax-rlmin+1)
     lensingLarray = np.linspace(ellmin, ellmax, samples)
     output_dir = "N1_numerical_results"
     os.makedirs(output_dir, exist_ok=True)

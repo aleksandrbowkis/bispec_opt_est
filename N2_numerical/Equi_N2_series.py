@@ -51,15 +51,16 @@ lcldoubleprime_interp = interp1d(L, lcldoubleprime, kind='cubic', bounds_error=F
 
 # Define a the integrand
 # Note cf mathematica we add a factor of QE normalisation,1/(2pi)^2 from integral not expanded and 3 for different permutations of L
+# Note there is an extra factor of l from the measure.
 def integrand_fn(lensingL, ell, cl_phi_interp, lcl_interp, ctot_interp, ctotprime_interp, lclprime_interp, lcldoubleprime_interp):
 
-    integrand = (1/(2*np.pi)**2)*3  * cl_phi_interp(lensingL) ** 2 * 1 / (32 * ctot_interp(ell) ** 3) * lensingL ** 3 * (lensingL+1)**3  * np.pi * (
-        ell ** 2 * ctotprime_interp(ell) * (8 * lcl_interp(ell) ** 2 + 6 * ell * lcl_interp(ell) * lclprime_interp(ell) + ell ** 2 * lclprime_interp(ell) ** 2) 
+    integrand = (1/(2*np.pi)**2)*3  * cl_phi_interp(lensingL) ** 2 * 1 / (32 * ctot_interp(ell) ** 3) * lensingL ** 3 * (lensingL+1)**3  * np.pi *ell *(
+        ell * ctotprime_interp(ell) * (8 * lcl_interp(ell) ** 2 + 6 * ell * lcl_interp(ell) * lclprime_interp(ell) + ell ** 2 * lclprime_interp(ell) ** 2) 
         + ctot_interp(ell) * (32 * lcl_interp(ell) ** 2 + 6 * ell ** 2 * lclprime_interp(ell) ** 2 + ell * lcl_interp(ell) * (41 * lclprime_interp(ell) + 3 * ell * lcldoubleprime_interp(ell)))
     )
     return integrand
 
-lensingLarray = np.arange(1,200,10)
+lensingLarray = np.arange(2, 1000, 10)
 output_quad = []
 output_direct = []
 
@@ -99,17 +100,17 @@ for lensingL in lensingLarray:
     output_direct.append(integral_direct_sum)
 
 # Convert to kappa bias from phi
-output_quad *= (0.5*lensingLarray*(lensingLarray+1))**3
-output_direct *= (0.5*lensingLarray*(lensingLarray+1))**3
+#output_quad *= (0.5*lensingLarray*(lensingLarray+1))**3
+#output_direct *= (0.5*lensingLarray*(lensingLarray+1))**3
 
 # Change outputs to numpy arrays
 output_quad = np.array(output_quad)
 output_direct = np.array(output_direct)
 
 # Save outputs
-np.savetxt('TEST_quad_equi.txt', (lensingLarray, output_quad))
-np.savetxt('TEST_direct_equi.txt', (lensingLarray, output_direct))
-np.savetxt('norm_phi.txt', (L[:lmax+1],phi_norm['TT']))
+np.savetxt('No_l_factors_mathematica_TEST_quad_equi.txt', (lensingLarray, output_quad))
+np.savetxt('N0_l_factors_mathematica_TEST_direct_equi.txt', (lensingLarray, output_direct))
+#np.savetxt('norm_phi.txt', (L[:lmax+1],phi_norm['TT']))
 
 """ Summary 16/7/24 this works, low l series expansion agreement between quad and direct sum. Unfortunately still disagreement with vegas and with simulations/Giorgio's calculations.
 Checking vegas vs quad/direct next will load in quad from this and compute vegas in a seperate script to keep tidy. """
