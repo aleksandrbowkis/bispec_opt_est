@@ -1,5 +1,5 @@
 """
-    Computes the N2 bias to the reconstructed lensing bispectrum in the folded configuration.
+    Computes the N2 bias to the reconstructed lensing bispectrum in the folded configuration. FOR PHI
 """
 
 import numpy as np
@@ -23,7 +23,7 @@ nside = 2048
 bstype = 'fold'
 nsims = 448 # Number of simulations to average over (in sets of 3) 
 ellmin = 2 
-ellmax = 3000 ##### 30/09/24 CHANGED TO 3000 CF SIMULATED RESULTS
+ellmax = 2000 ##### 30/09/24 CHANGED TO 3000 CF SIMULATED RESULTS
 
 ################ Power spectra ################
 
@@ -54,33 +54,47 @@ lcldoubleprime = np.gradient(lclprime, L)
 lcldoubleprime_interp = interp1d(L, lcldoubleprime, kind='cubic', bounds_error=False, fill_value="extrapolate")
 
 # Define a the integrand
-# Note cf mathematica we add a factor of QE normalisation,1/(2pi)^2 from integral not expanded 
-def integrand_fn(lensingL, ell, cl_phi_interp, lcl_interp, ctot_interp, ctotprime_interp, lclprime_interp, lcldoubleprime_interp):
+# Note cf mathematica we add a factor of QE normalisation,1/(2pi)^2 from integral not expanded and the cL/2 phi (recall these L/2 in folded case)
 
-    integrand = (1/(2*np.pi)**2) * cl_phi_interp(lensingL) ** 2 * 1 / (256 * ctot_interp(ell) ** 3) * 3 * lensingL ** 3 * (lensingL+1)**3  * np.pi * (
-        16 * ctot_interp(ell) * lcl_interp(ell) ** 2 + 16 * ell * lcl_interp(ell)**2 * ctotprime_interp(ell) + 7 * ell * ctot_interp(ell) * lcl_interp(ell) * lclprime_interp(ell) + 
-         18 * ell**2 * lcl_interp(ell) * ctotprime_interp(ell) * lclprime_interp(ell) + 6 * ell**2 * ctot_interp(ell) * lclprime_interp(ell)**2 +
-         5 * ell**3 * ctotprime_interp(ell) * lclprime_interp(ell)**2 - 3 * ell**2 * ctot_interp(ell) * lcl_interp(ell) * lcldoubleprime_interp(ell)
-    )
+# We now use new mathematica expression where AL, AL/2 and AL/3 are used for three different terms. Note that the phi power sepctr are calculated at the other two lensing L's 
+# in the folded configuration that don't appear in the normalisation factor. A1,2,3 in the mathematica notebook are the norm and the appropriate Clphi's
+
+
+
+
+def integrand_fn(lensingL, ell, cl_phi_interp, lcl_interp, ctot_interp, ctotprime_interp, lclprime_interp, lcldoubleprime_interp, norm_factor_phi):
+
+    A1 = (1/(2*np.pi)**2)*norm_factor_phi(lensingL) * cl_phi_interp(lensingL/2)**2
+    A2 = (1/(2*np.pi)**2)*norm_factor_phi(lensingL/2) * cl_phi_interp(lensingL/2) * cl_phi_interp(lensingL)
+    A3 = A2
+
+    integrand = 1 / (256 * ctot_interp(ell) ** 3) * lensingL ** 3 * (lensingL+1)**3 * np.pi * (32*A1*ctot_interp(ell)*lcl_interp(ell)**2 - 16*A2*ctot_interp(ell)*lcl_interp(ell)**2 - 64*A3*ctot_interp(ell)*lcl_interp(ell)**2 - 
+        64*A1*ell*lcl_interp(ell)**2*ctotprime_interp(ell) - 16*A2*ell*lcl_interp(ell)**2*ctotprime_interp(ell) +32*A3*ell*lcl_interp(ell)**2*ctotprime_interp(ell) + 122*A1*ell*ctot_interp(ell)*lcl_interp(ell)*lclprime_interp(ell) - 
+        7*A2*ell*ctot_interp(ell)*lcl_interp(ell)*lclprime_interp(ell) - 136*A3*ell*ctot_interp(ell)*lcl_interp(ell)*lclprime_interp(ell) - 72*A1*ell**2*lcl_interp(ell)*ctotprime_interp(ell)*lclprime_interp(ell) - 
+        18*A2*ell**2*lcl_interp(ell)*ctotprime_interp(ell)*lclprime_interp(ell) + 36*A3*ell**2*lcl_interp(ell)*ctotprime_interp(ell)*lclprime_interp(ell) + 51*A1*ell**2*ctot_interp(ell)*lclprime_interp(ell)**2 - 
+        6*A2*ell**2*ctot_interp(ell)*lclprime_interp(ell)**2 - 63*A3*ell**2*ctot_interp(ell)*lclprime_interp(ell)**2 - 20*A1*ell**3*ctotprime_interp(ell)*lclprime_interp(ell)**2 - 5*A2*ell**3*ctotprime_interp(ell)*lclprime_interp(ell)**2 + 
+        10*A3*ell**3*ctotprime_interp(ell)*lclprime_interp(ell)**2 + 30*A1*ell**2*ctot_interp(ell)*lcl_interp(ell)*lcldoubleprime_interp(ell) + 3*A2*ell**2*ctot_interp(ell)*lcl_interp(ell)*lcldoubleprime_interp(ell) - 
+        24*A3*ell**2*ctot_interp(ell)*lcl_interp(ell)*lcldoubleprime_interp(ell) + 15*A1*ell**3*ctot_interp(ell)*lclprime_interp(ell)*lcldoubleprime_interp(ell) - 15*A3*ell**3*ctot_interp(ell)*lclprime_interp(ell)*lcldoubleprime_interp(ell))
     return integrand
 
-lensingLarray = np.arange(1,1000,10)
+lensingLarray = np.arange(2,1000,10)
 output_quad = []
 output_direct = []
 
 # Now calculate the normalisation. Outside loop as unnecessary to repeatedly calculate.
 phi_norm, phi_curl_norm = {}, {}
 phi_norm['TT'], phi_curl_norm['TT'] = cs.norm_quad.qtt('lens',lmax,rlmin,rlmax,lcl,ocl,lfac='')
+norm_factor_phi = interp1d(L, phi_norm['TT'], kind='cubic', bounds_error=False, fill_value="extrapolate")
 
 for lensingL in lensingLarray:
     # Wrapper function for quad, call integrand_fn for every lensingL
     def integrand_wrapper(ell):
-        return integrand_fn(lensingL, ell, cl_phi_interp, lcl_interp, ctot_interp, ctotprime_interp, lclprime_interp, lcldoubleprime_interp)
+        return integrand_fn(lensingL, ell, cl_phi_interp, lcl_interp, ctot_interp, ctotprime_interp, lclprime_interp, lcldoubleprime_interp, norm_factor_phi)
 
     # Populate the integrand for this lensing L at every cmb l up to 2000
     integrand_values = []
     for ell in np.arange(ellmin, ellmax + 1):
-        integrand = integrand_fn(lensingL, ell, cl_phi_interp, lcl_interp, ctot_interp, ctotprime_interp, lclprime_interp, lcldoubleprime_interp)
+        integrand = integrand_fn(lensingL, ell, cl_phi_interp, lcl_interp, ctot_interp, ctotprime_interp, lclprime_interp, lcldoubleprime_interp, norm_factor_phi)
         integrand_values.append(integrand)
 
     # Now write some code to integrate this using quad
@@ -89,29 +103,18 @@ for lensingL in lensingLarray:
     # Now compute the same integrand using direct summation
     integral_direct_sum = np.sum(integrand_values)
 
-    # Now calculate the normalisation for this lensingL. Recall we're using phi everywhere as the low L N2 result was computed for phi.
-    norm_factor_phi = phi_norm['TT'][int(lensingL)]
-
-    # Normalise the two integrals
-    integral_quad *= norm_factor_phi
-    integral_direct_sum *= norm_factor_phi
-
     print('quad', integral_quad)
     print('direct sum', integral_direct_sum)
-    print('norm_factor_phi', norm_factor_phi)
 
     output_quad.append(integral_quad)
     output_direct.append(integral_direct_sum)
 
-# Convert to kappa bias from phi
-output_quad *= (0.5*lensingLarray*(lensingLarray+1))**3
-output_direct *= (0.5*lensingLarray*(lensingLarray+1))**3
 
 # Change outputs to numpy arrays
 output_quad = np.array(output_quad)
 output_direct = np.array(output_direct)
 
 # Save outputs
-np.savetxt('fix_TEST_quad_fold.txt', (lensingLarray, output_quad))
-np.savetxt('TEST_direct_fold.txt', (lensingLarray, output_direct))
+np.savetxt('quad_fold.txt', (lensingLarray, output_quad))
+np.savetxt('direct_fold.txt', (lensingLarray, output_direct))
 

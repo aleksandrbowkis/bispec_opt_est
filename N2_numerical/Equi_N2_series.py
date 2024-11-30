@@ -108,8 +108,8 @@ output_quad = np.array(output_quad)
 output_direct = np.array(output_direct)
 
 # Save outputs
-np.savetxt('No_l_factors_mathematica_TEST_quad_equi.txt', (lensingLarray, output_quad))
-np.savetxt('N0_l_factors_mathematica_TEST_direct_equi.txt', (lensingLarray, output_direct))
+np.savetxt('Low_L_equi.txt', (lensingLarray, output_quad))
+#np.savetxt('N0_l_factors_mathematica_TEST_direct_equi.txt', (lensingLarray, output_direct))
 #np.savetxt('norm_phi.txt', (L[:lmax+1],phi_norm['TT']))
 
 """ Summary 16/7/24 this works, low l series expansion agreement between quad and direct sum. Unfortunately still disagreement with vegas and with simulations/Giorgio's calculations.
