@@ -56,22 +56,71 @@ lcldoubleprime_interp = interp1d(L, lcldoubleprime, kind='cubic', bounds_error=F
 ###################### Integrand ###########################
 
 def integrand_fn(ell, cl_phi_interp, lcl_interp, ctot_interp, ctotprime_interp, lclprime_interp, lcldoubleprime_interp, norm_factor_phi, x1, x2, x3, L1, L2, L3):
-    """ Integrand for series approximation of N2 at low multipoles. x1,2,3 are the internal angles of triangle with side length L1,2,3 defined from positive x axis. """
+    """ Integrand for series approximation of N2 at low multipoles. x1,2,3 are the internal angles of triangle with side length L1,2,3 defined from positive x axis. Additional factor of ell from integral measure d2l -> ldldtheta
+        Note we've changed the L1*L2*L3 from wolfram into (L1+1) etc for the full sky result - still v marginally different to the equilateral result computed directly at low l so double check this is actually doing the correct thing
+        / capturing all full sky effects
+        Also note this expression is out by a factor of -1 as are all the wolfram expressions (just from 2integralA-2integralB etc when setup which should be other way around) 
+        This works for equilateral but note in that case the external angles sum to 2pi not pi - maybe this is the problem for folded??"""
     A1 = (1/(2*np.pi)**2)*norm_factor_phi(L1) * cl_phi_interp(L2)*cl_phi_interp(L3)
     A2 = (1/(2*np.pi)**2)*norm_factor_phi(L2) * cl_phi_interp(L1)*cl_phi_interp(L3)
     A3 = (1/(2*np.pi)**2)*norm_factor_phi(L3) * cl_phi_interp(L2)*cl_phi_interp(L1)
 
-    integrand = 1 / (32 * ctot_interp(ell) ** 3)*L1*L2*L3**2*np.pi*(2*ell*ctotprime_interp(ell)*(8*(3*(A1*L1**2+A2*L2**2)*np.cos(x1-x2)+(A1*L1**2+A2*L2**2)*Cos(x1+x2-2*x3) +
+    integrand = 1 / (32 * ctot_interp(ell) ** 3)*(L1+1)*(L2+1)*(L3+1)**2*np.pi*ell*(2*ell*ctotprime_interp(ell)*(8*(3*(A1*L1**2+A2*L2**2)*np.cos(x1-x2)+(A1*L1**2+A2*L2**2)*np.cos(x1+x2-2*x3) +
                                                                                                     A3*L1*L3*(np.cos(2*x1-x2-x3)+3*np.cos(x2-x3)))*lcl_interp(ell)**2+2*ell*(13*(A1*L1**2+A2*L2**2)*np.cos(x1-x2)+5*(A1*L1**2+A2*L2**2)*np.cos(x1+x2-2*x3)+A3*L1*L3*(5*np.cos(2*x1-x2-x3)+13*np.cos(x2-x3)))*lcl_interp(ell)*lclprime_interp(ell) + 
                                                                                                                                                                              ell**2*(6*(A1*L1**2+A2*L2**2)*np.cos(x1-x2)+A3*L1*L3*np.cos(2*x1+x2-3*x3)+A1*L1**2*np.cos(3*x1-x2-2*x3)+3*A1*L1**2*np.cos(x1+x2-2*x3)+3*A2*L2**2*np.cos(x1+x2-2*x3)+3*A3*L1*L3*np.cos(2*x1-x2-x3)+6*A3*L1*L3*np.cos(x2-x3)+A2*L2**2*np.cos(x1-3*x2+2*x3))*lclprime_interp(ell)**2)+
-                                                                                                                                                                             ctot_interp(ell)*(64*(A3*L1**2*np.cos(x1-x2)+A2*L2*L3*np.cos(x1-x3)+A1*L1*L3*np.cos(x2-x3))*lcl_interp(ell)**2-2*ell*lcl_interp(ell)*(((27*A1*L1**2 - 50*A3*L1**2+27*A2*L2**2)*np.cos(x1-x2)+9*(A1*La**2+A2*L2**2)*np.cos(x1+x2-2*x3)+
+                                                                                                                                                                             ctot_interp(ell)*(64*(A3*L1**2*np.cos(x1-x2)+A2*L2*L3*np.cos(x1-x3)+A1*L1*L3*np.cos(x2-x3))*lcl_interp(ell)**2-2*ell*lcl_interp(ell)*(((27*A1*L1**2 - 50*A3*L1**2+27*A2*L2**2)*np.cos(x1-x2)+9*(A1*L1**2+A2*L2**2)*np.cos(x1+x2-2*x3)+
                                                                                                                                                                                                                                                                                                                     L3*(-50*A2*L2*np.cos(x1-x3)+9*A3*L1*np.cos(2*x1-x2-x3)+(-50*A1+27*A3)*L1*np.cos(x2-x3)))*lclprime_interp(ell)+
                                                                                                                                                                                                                                                                                                                     3*ell*((3*A1*L1**2-2*A3*L1**2+3*A2*L2**2)*np.cos(x1-x2)+(A1*L1**2+A2*L2**2)*np.cos(x1+x2-2*x3)+L3*(-2*A2*L2*np.cos(x1-x3)+A3*L1*np.cos(2*x1-x2-x3)+(-2*A1+3*A3)*L1*np.cos(x2-x3)))*lcldoubleprime_interp(ell))+
                                                                                                                                                                                                                                                                                                                     ell**2*lclprime_interp(ell)*((-2*(9*A1*L1**2-17*A3*L1**2+9*A2*L2**2)*np.cos(x1-x2)+(3*A1+A3)*L1*L3*np.cos(2*x1+x2-3*x3)+3*A2*L2*L3*np.cos(x1+2*x2-3*x3)+A1*L1**2*np.cos(3*x1-x2-2*x3)+3*A3*L1**2*np.cos(3*x1-x2-2*x3)-
                                                                                                                                                                                                                                                                                                                                                   9*A1*L1**2*np.cos(x1+x2-2*x3)+13*A3*L1**2*np.cos(x1+x2-2*x3)-9*A2*L2**2*np.cos(x1+x2-2*x3)+34*A2*L2*L3*np.cos(x1-x3)+13*A1*L1*L3*np.cos(2*x1-x2-x3)-9*A3*L1*L3*np.cos(2*x1-x2-x3)+
-                                                                                                                                                                                                                                                                                                                                                  34*a1*L1*L3*np.cos(x2-x3)-18*A3*L1*L3*np.cos(x2-x3)+13*A2*L2*L3*np.cos(x1-2*x2+x3)+A2*L2**2*np.cos(x1-3*x2+2*x3))*lclprime_interp(ell)+ell*(-6*(A1*L1**2-A3*L1**2+A2*L2**2)*np.cos(x1-x2)+(A1-A3)*L1*L3*np.cos(2*x1+x2-3*x3)+
+                                                                                                                                                                                                                                                                                                                                                  34*A1*L1*L3*np.cos(x2-x3)-18*A3*L1*L3*np.cos(x2-x3)+13*A2*L2*L3*np.cos(x1-2*x2+x3)+A2*L2**2*np.cos(x1-3*x2+2*x3))*lclprime_interp(ell)+ell*(-6*(A1*L1**2-A3*L1**2+A2*L2**2)*np.cos(x1-x2)+(A1-A3)*L1*L3*np.cos(2*x1+x2-3*x3)+
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               A2*L2*L3*np.cos(x1+2*x2-3*x3)-A1*L1**2*np.cos(3*x1-x2-2*x3)+A3*L1**2*np.cos(3*x1-x2-2*x3)-
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               3*A1*L1**2*np.cos(x1+x2-2*x3)+3*A3*L1**2*np.cos(x1+x2-2*x3)-3*A2*L2**2*np.cos(x1+x2-2*x3)+
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               6*A2*L2*L3*np.cos(x1-x3)+3*A1*L1*L3*np.cos(2*x1-x2-x3)-3*A3*L1*L3*np.cos(2*x1-x2-x3)+6*A1*L1*L3*np.cos(x2-x3)-
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               6*A3*L1*L3*np.cos(x2-x3)+3*A2*L2*L3*np.cos(x1-2*x2+x3)-A2*L2**2*np.cos(x1-3*x2+2*x3))*lcldoubleprime_interp(ell))))
     return integrand
+
+##################### Test for equilateral and cf existing result ####################
+
+lensingLarray = np.arange(2, 1000, 10)
+output_quad = []
+phi_norm, phi_curl_norm = {}, {}
+phi_norm['TT'], phi_curl_norm['TT'] = cs.norm_quad.qtt('lens',rlmax,rlmin,rlmax,lcl,ocl,lfac='')
+norm_factor_phi = interp1d(L, phi_norm['TT'], kind='cubic', bounds_error=False, fill_value="extrapolate")
+
+#Define triangle shape for equilateral:
+# x1 = 0
+# x2 = 2*np.pi/3
+# x3 = 4*np.pi/3
+
+
+# Define triangle shape for folded:
+x1 = 0
+x2 = np.pi
+x3 = np.pi
+
+for lensingL in lensingLarray:
+    #Define triangle side lengths (equilateral):
+    # L1 = lensingL
+    # L2 = lensingL
+    # L3 = lensingL
+
+    #Define triangle side lengths (folded):
+    L1 = lensingL
+    L2 = lensingL/2
+    L3 = lensingL/2
+
+    # Wrapper function for quad, call integrand_fn for every lensingL
+    def integrand_wrapper(ell):
+        return integrand_fn(ell, cl_phi_interp, lcl_interp, ctot_interp, ctotprime_interp, lclprime_interp, lcldoubleprime_interp, norm_factor_phi, x1, x2, x3, L1, L2, L3)
+    
+    # Now integrate this using quad
+    integral_quad, error = quad(integrand_wrapper, ellmin, ellmax, limit=100)
+
+    output_quad.append(integral_quad)
+
+# Change outputs to numpy arrays
+output_quad = np.array(output_quad)
+
+# Save result
+np.savetxt('full_int_fold_test.txt', (lensingLarray, output_quad))

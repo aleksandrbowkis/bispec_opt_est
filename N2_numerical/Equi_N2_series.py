@@ -79,7 +79,7 @@ for lensingL in lensingLarray:
         integrand = integrand_fn(lensingL, ell, cl_phi_interp, lcl_interp, ctot_interp, ctotprime_interp, lclprime_interp, lcldoubleprime_interp)
         integrand_values.append(integrand)
 
-    # Now write some code to integrate this using quad
+    # Now integrate this using quad
     integral_quad, error = quad(integrand_wrapper, ellmin, ellmax, limit=100)
 
     # Now compute the same integrand using direct summation
