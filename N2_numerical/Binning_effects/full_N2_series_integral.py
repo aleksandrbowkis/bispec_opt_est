@@ -12,7 +12,6 @@ sys.path.append('/home/amb257/software/cmplx_cmblensplus/wrap')
 sys.path.append('/home/amb257/software/cmplx_cmblensplus/utils')
 # from cmblensplus/wrap/
 import curvedsky as cs
-from scipy.integrate import quad
 
 ################ Parameters ###############
 
@@ -80,6 +79,40 @@ def integrand_fn(ell, cl_phi_interp, lcl_interp, ctot_interp, ctotprime_interp, 
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               6*A3*L1*L3*np.cos(x2-x3)+3*A2*L2*L3*np.cos(x1-2*x2+x3)-A2*L2**2*np.cos(x1-3*x2+2*x3))*lcldoubleprime_interp(ell))))
     return integrand
 
+def calculate_N2(L1, L2, L3, x1, x2, x3, ellmin=2, ellmax=2000):
+    """
+    Calculate the N2 bias for a given triangle configuration.
+    
+    Parameters:
+    L1, L2, L3 : float
+        Side lengths of the triangle.
+    x1, x2, x3 : float
+        Angles of the triangle.
+    ellmin, ellmax : int, optional
+        Integration range over multipoles (default: 2 to 2000).
+    
+    Returns:
+    N2_bias : float
+        The computed N2 bias.
+    """
+    # Wrapper for the integrand function
+    def integrand_wrapper(ell):
+        return integrand_fn(
+            ell,
+            cl_phi_interp,
+            lcl_interp,
+            ctot_interp,
+            ctotprime_interp,
+            lclprime_interp,
+            lcldoubleprime_interp,
+            norm_factor_phi,
+            x1, x2, x3, L1, L2, L3
+        )
+    
+    # Compute the integral using quad
+    integral_quad, error = quad(integrand_wrapper, ellmin, ellmax, limit=100)
+    return integral_quad
+
 ##################### Test for equilateral and cf existing result ####################
 
 lensingLarray = np.arange(2, 1000, 10)
@@ -124,3 +157,4 @@ output_quad = np.array(output_quad)
 
 # Save result
 np.savetxt('full_int_fold_test.txt', (lensingLarray, output_quad))
+
