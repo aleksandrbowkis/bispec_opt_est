@@ -31,7 +31,7 @@ def find_angles(L1, L2, L3):
     return x1, x2, x3
 
 
-####### Main ######
+####### Tests ######
 
 L1 = 100
 L2 = L1 
@@ -43,29 +43,35 @@ x3 = 4*np.pi/3
 output = calculate_N2(L1, L2, L3, x1, x2, x3)
 print(output)
 
-# Now calculate all permissible triangles within a multipole bin
-
-bin_edges = np.arange(2,20)
-
-# Now use meshgrid to create list of all possible L1,2,3 triplets within a bin
-# Then use the triangle inequality to decide whether permissible
-
-
-
 what_are_my_triangles = find_triangles(2,5)
 
 x1,x2,x3 = find_angles(2, 2, 2)
 print(x1, x2, x3)
 
+################ Main ############
+
 # Now define binning scheme. Note this only up to L of 100 atm
 bin_edges = [20,40,60,80,100] #,200,300,400,500, 600, 700, 800, 900, 1000]
+bin_edges = np.array(bin_edges)
+bin_mid = 0.5 * (bin_edges[1:] + bin_edges[:-1])
+averaged_N2_bin = []
 
 for i in range(len(bin_edges) - 1):
     # Find the bin edges
-    Lmin = bin_edges[i]
-    Lmax = bin_edges[i + 1]
-    
+    bin_min = bin_edges[i]
+    bin_max = bin_edges[i + 1]
+    which_triangles = find_triangles(bin_min, bin_max)
 
+    N2_bin = []
 
+    for triangle in which_triangles:
+        L1, L2, L3 = triangle
+        x1, x2, x3 = find_angles(L1, L2, L3)
+        N2_value = calculate_N2(L1, L2, L3, x1, x2, x3)
+        N2_bin.append(N2_value)
 
-#print(what_are_my_triangles)
+    average_N2_in_this_bin = np.mean(N2_bin)
+    averaged_N2_bin.append(average_N2_in_this_bin)
+
+# Save
+np.save('binned_calc.npy', (bin_mid,averaged_N2_bin))
