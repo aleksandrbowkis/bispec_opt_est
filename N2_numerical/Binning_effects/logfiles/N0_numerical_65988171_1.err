@@ -1,0 +1,4 @@
+Traceback (most recent call last):
+  File "Calc_binning.py", line 55, in <module>
+    bin_mid = 0.5 * (bin_edges[1:] + bin_edges[:-1])
+TypeError: can't multiply sequence by non-int of type 'float'
