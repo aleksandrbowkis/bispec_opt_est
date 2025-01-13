@@ -68,23 +68,50 @@ def integrand_fn(lensingL, ell, cl_phi_interp, lcl_interp, ctot_interp, ctotprim
     #     18*ell**2*lcl_interp(ell)*ctotprime_interp(ell)*lclprime_interp(ell) - 6*ell**2*ctot_interp(ell)*lclprime_interp(ell)**2 - 5*ell**3*ctotprime_interp(ell)*lclprime_interp(ell)**2 + 3*ell**2*ctot_interp(ell)*lcl_interp(ell)*lcldoubleprime_interp(ell))
     # return integrand
     #The below changed each normalisation factor but this gives best results when all factors are the same so perhaps not correct. Reverting to previous equal norm expression.
-    A1 = (1/(2*np.pi)**2)*norm_factor_phi(lensingL) * cl_phi_interp(lensingL)*cl_phi_interp(lensingL)
-    A2 = (1/(2*np.pi)**2)*norm_factor_phi(lensingL/2) * cl_phi_interp(lensingL) * cl_phi_interp(lensingL)
-    A3 = A2
+    A1 = (1/(2*np.pi)**2)*norm_factor_phi(lensingL) * cl_phi_interp(lensingL/2)*cl_phi_interp(lensingL/2)
+    A2 = (1/(2*np.pi)**2)*norm_factor_phi(lensingL/2) * cl_phi_interp(lensingL/2) * cl_phi_interp(lensingL)
+    #A3 = A2
 
     #FORGOT THE ELL FACTOR FOR MEASURE. Note this (2/12/24) looks much better with the same normalisation factor for each so may have been wrong... But still not quite right (approx factor of 10 too small)
     # Changing the clphi to L/2 boosts the integral.
+    F1 = (-32 * ctot_interp(ell) * lcl_interp(ell)**2
+      + 64 * ell * ctotprime_interp(ell) * lcl_interp(ell)**2
+      - 122 * ell * ctot_interp(ell) * lcl_interp(ell) * lclprime_interp(ell)
+      + 72 * ell**2 * lcl_interp(ell) * ctotprime_interp(ell) * lclprime_interp(ell)
+      - 51 * ell**2 * ctot_interp(ell) * lclprime_interp(ell)**2
+      + 20 * ell**3 * ctotprime_interp(ell) * lclprime_interp(ell)**2
+      - 30 * ell**2 * ctot_interp(ell) * lcl_interp(ell) * lcldoubleprime_interp(ell)
+      - 15 * ell**3 * ctot_interp(ell) * lclprime_interp(ell) * lcldoubleprime_interp(ell))
 
-    integrand = 1 / (256 * ctot_interp(ell) ** 3) * lensingL ** 3 * (lensingL+1)**3 * np.pi * ell * (32*A1*ctot_interp(ell)*lcl_interp(ell)**2 - 16*A2*ctot_interp(ell)*lcl_interp(ell)**2 - 64*A3*ctot_interp(ell)*lcl_interp(ell)**2 - 
-        64*A1*ell*lcl_interp(ell)**2*ctotprime_interp(ell) - 16*A2*ell*lcl_interp(ell)**2*ctotprime_interp(ell) +32*A3*ell*lcl_interp(ell)**2*ctotprime_interp(ell) + 122*A1*ell*ctot_interp(ell)*lcl_interp(ell)*lclprime_interp(ell) - 
-        7*A2*ell*ctot_interp(ell)*lcl_interp(ell)*lclprime_interp(ell) - 136*A3*ell*ctot_interp(ell)*lcl_interp(ell)*lclprime_interp(ell) - 72*A1*ell**2*lcl_interp(ell)*ctotprime_interp(ell)*lclprime_interp(ell) - 
-        18*A2*ell**2*lcl_interp(ell)*ctotprime_interp(ell)*lclprime_interp(ell) + 36*A3*ell**2*lcl_interp(ell)*ctotprime_interp(ell)*lclprime_interp(ell) + 51*A1*ell**2*ctot_interp(ell)*lclprime_interp(ell)**2 - 
-        6*A2*ell**2*ctot_interp(ell)*lclprime_interp(ell)**2 - 63*A3*ell**2*ctot_interp(ell)*lclprime_interp(ell)**2 - 20*A1*ell**3*ctotprime_interp(ell)*lclprime_interp(ell)**2 - 5*A2*ell**3*ctotprime_interp(ell)*lclprime_interp(ell)**2 + 
-        10*A3*ell**3*ctotprime_interp(ell)*lclprime_interp(ell)**2 + 30*A1*ell**2*ctot_interp(ell)*lcl_interp(ell)*lcldoubleprime_interp(ell) + 3*A2*ell**2*ctot_interp(ell)*lcl_interp(ell)*lcldoubleprime_interp(ell) - 
-        24*A3*ell**2*ctot_interp(ell)*lcl_interp(ell)*lcldoubleprime_interp(ell) + 15*A1*ell**3*ctot_interp(ell)*lclprime_interp(ell)*lcldoubleprime_interp(ell) - 15*A3*ell**3*ctot_interp(ell)*lclprime_interp(ell)*lcldoubleprime_interp(ell))
+    F2 = (80 * ctot_interp(ell) * lcl_interp(ell)**2
+      - 16 * ell * lcl_interp(ell)**2 * ctotprime_interp(ell)
+      + 143 * ell * ctot_interp(ell) * lcl_interp(ell) * lclprime_interp(ell)
+      - 18 * ell**2 * lcl_interp(ell) * ctotprime_interp(ell) * lclprime_interp(ell)
+      + 69 * ell**2 * ctot_interp(ell) * lclprime_interp(ell)**2
+      - 5 * ell**3 * ctotprime_interp(ell) * lclprime_interp(ell)**2
+      + 21 * ell**2 * ctot_interp(ell) * lcl_interp(ell) * lcldoubleprime_interp(ell)
+      + 15 * ell**3 * ctot_interp(ell) * lclprime_interp(ell) * lcldoubleprime_interp(ell))
+
+    integrand = (1 / (256 * ctot_interp(ell)**3)
+             * lensingL**3 * (lensingL + 1)**3 * np.pi * ell
+             * (A1 * F1 + A2 * F2))
+
+    # integrand = 1 / (256 * ctot_interp(ell) ** 3) * lensingL ** 3 * (lensingL+1)**3 * np.pi * ell * (-32*A1*ctot_interp(ell)*lcl_interp(ell)**2 + 80*A2*ctot_interp(ell)*lcl_interp(ell)**2 + 64*A1*ell*ctotprime_interp(ell)*lcl_interp(ell)**2 - 
+    #                                                                                                   16*A2*ell*lcl_interp(ell)**2*ctotprime_interp(ell) - 122*A1*ell*ctot_interp(ell)*lcl_interp(ell)*lclprime_interp(ell) + 143*A2*ell*ctot_interp(ell)*lcl_interp(ell)*lclprime_interp(ell) + 
+    #                                                                                                   72*A1*ell**2*lcl_interp(ell)*ctotprime_interp(ell)*lclprime_interp(ell) - 18*A2*ell**2*lcl_interp(ell)*ctotprime_interp(ell)*lclprime_interp(ell) - 51*A1*ell**2*ctot_interp(ell)*lclprime_interp(ell)**2 + 
+    #                                                                                                   69*A2*ell**2*ctot_interp(ell)*lclprime_interp(ell)**2 + 20*A1*ell**3*ctotprime_interp(ell)*lclprime_interp(ell)**2 - 5*A2*ell**3*ctotprime_interp(ell)*lclprime_interp(ell)**2 - 30*A1*ell**2*ctot_interp(ell)*lcl_interp(ell)*lcldoubleprime_interp(ell) + 
+    #                                                                                                   21*A2*ell**2*ctot_interp(ell)*lcl_interp(ell)*lcldoubleprime_interp(ell) - 15*A1*ell**3*ctot_interp(ell)*lclprime_interp(ell)*lcldoubleprime_interp(ell) + 15*A2*ell**3*ctot_interp(ell)*lclprime_interp(ell)*lcldoubleprime_interp(ell))                      
+
+    # integrand = 1 / (256 * ctot_interp(ell) ** 3) * lensingL ** 3 * (lensingL+1)**3 * np.pi * ell * (32*A1*ctot_interp(ell)*lcl_interp(ell)**2 - 16*A2*ctot_interp(ell)*lcl_interp(ell)**2 - 64*A3*ctot_interp(ell)*lcl_interp(ell)**2 - 
+    #     64*A1*ell*lcl_interp(ell)**2*ctotprime_interp(ell) - 16*A2*ell*lcl_interp(ell)**2*ctotprime_interp(ell) +32*A3*ell*lcl_interp(ell)**2*ctotprime_interp(ell) + 122*A1*ell*ctot_interp(ell)*lcl_interp(ell)*lclprime_interp(ell) - 
+    #     7*A2*ell*ctot_interp(ell)*lcl_interp(ell)*lclprime_interp(ell) - 136*A3*ell*ctot_interp(ell)*lcl_interp(ell)*lclprime_interp(ell) - 72*A1*ell**2*lcl_interp(ell)*ctotprime_interp(ell)*lclprime_interp(ell) - 
+    #     18*A2*ell**2*lcl_interp(ell)*ctotprime_interp(ell)*lclprime_interp(ell) + 36*A3*ell**2*lcl_interp(ell)*ctotprime_interp(ell)*lclprime_interp(ell) + 51*A1*ell**2*ctot_interp(ell)*lclprime_interp(ell)**2 - 
+    #     6*A2*ell**2*ctot_interp(ell)*lclprime_interp(ell)**2 - 63*A3*ell**2*ctot_interp(ell)*lclprime_interp(ell)**2 - 20*A1*ell**3*ctotprime_interp(ell)*lclprime_interp(ell)**2 - 5*A2*ell**3*ctotprime_interp(ell)*lclprime_interp(ell)**2 + 
+    #     10*A3*ell**3*ctotprime_interp(ell)*lclprime_interp(ell)**2 + 30*A1*ell**2*ctot_interp(ell)*lcl_interp(ell)*lcldoubleprime_interp(ell) + 3*A2*ell**2*ctot_interp(ell)*lcl_interp(ell)*lcldoubleprime_interp(ell) - 
+    #     24*A3*ell**2*ctot_interp(ell)*lcl_interp(ell)*lcldoubleprime_interp(ell) + 15*A1*ell**3*ctot_interp(ell)*lclprime_interp(ell)*lcldoubleprime_interp(ell) - 15*A3*ell**3*ctot_interp(ell)*lclprime_interp(ell)*lcldoubleprime_interp(ell))
     return integrand
 
-lensingLarray = np.arange(2,1000,10)
+lensingLarray = np.arange(2,1000,100)
 output_quad = []
 output_direct = []
 
@@ -122,8 +149,11 @@ for lensingL in lensingLarray:
 output_quad = np.array(output_quad)
 output_direct = np.array(output_direct)
 
+print('CLphi50', cl_phi[50])
+print('phi norm 100', phi_norm['TT'][100])
+
 # Save outputs
-np.savetxt('allAs_same_norm_quad_fold.txt', (lensingLarray, output_quad))
-np.savetxt('allAs_same_norm_direct_fold.txt', (lensingLarray, output_direct))
+np.savetxt('N2_fold.txt', (lensingLarray, output_quad))
+#np.savetxt('allAs_same_norm_direct_fold.txt', (lensingLarray, output_direct))
 
 
