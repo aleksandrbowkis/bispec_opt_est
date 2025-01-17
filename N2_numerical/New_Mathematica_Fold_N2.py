@@ -1,5 +1,8 @@
 """
     Computes the N2 bias to the reconstructed lensing bispectrum in the folded configuration. FOR PHI
+    This is working with the latest expression from new mathematica notebook N2_testing.nb produced 14/1/25
+    Use conda environment cmplx_fld_lensplus
+    Very wrong output, must check expression and function, rewrite self.
 """
 
 import numpy as np
@@ -16,14 +19,14 @@ from scipy.integrate import quad
 
 ################ Parameters ###############
 
-lmax = 2000
+lmax = 3000
 Tcmb  = 2.726e6    # CMB temperature in microkelvin?
-rlmin, rlmax = 2, 2000 # CMB multipole range for reconstruction
+rlmin, rlmax = 2, 3000 # CMB multipole range for reconstruction
 nside = 2048
 bstype = 'fold'
 nsims = 448 # Number of simulations to average over (in sets of 3) 
 ellmin = 2 
-ellmax = 2000 ##### 30/09/24 CHANGED TO 3000 CF SIMULATED RESULTS
+ellmax = 3000 ##### 30/09/24 CHANGED TO 3000 CF SIMULATED RESULTS
 
 ################ Power spectra ################
 
@@ -53,29 +56,48 @@ lclprime_interp = interp1d(L, lclprime, kind='cubic', bounds_error=False, fill_v
 lcldoubleprime = np.gradient(lclprime, L)
 lcldoubleprime_interp = interp1d(L, lcldoubleprime, kind='cubic', bounds_error=False, fill_value="extrapolate")
 
+################ Functions ################
 
-def compute_n2_bias(l, A1, A2, L, pi):
+def compute_n2_bias_folded(l, L, A_L, A_L_half):
+    """
+    Compute N2 bias for the folded configuration.
+    
+    Parameters:
+    -----------
+    l : float
+        First multipole
+    L : float
+        Second multipole
+    A_L : float
+        A(L) phi normalisation
+    A_L_half : float
+        A(L/2) phi normalisation
+    
+    Returns:
+    --------
+    float : The computed N2 bias
+    """
     # Get interpolated values
-    ctot = ctot_interp(l)
-    ctt = lcl_interp(l)
-    ctot_prime = ctotprime_interp(l)
-    ctt_prime = lclprime_interp(l)
-    ctt_double_prime = lcldoubleprime_interp(l)
+    Ctot = ctot_interp(l)
+    Cpp_L = cl_phi_interp(L)
+    Cpp_L_half = cl_phi_interp(L/2)
+    Ctt = lcl_interp(l)
+    dCtt = lclprime_interp(l)
+    d2Ctt = lcldoubleprime_interp(l)
+    dCtot = ctotprime_interp(l)
     
-    # Base factor (now including the additional l from spherical measure)
-    base = (l/(256 * ctot**3)) * (L*(L+1))**3 * pi
+    # Compute the N2 bias
+    prefactor = 1 / (1024*np.pi*Ctot**3)*l*(L*(L+1))**3*Cpp_L_half
+
+    term1 = A_L*Cpp_L_half*(-4*l*dCtot*(16*Ctt**2 + 18*l*Ctt*dCtt + 5*l**2*dCtt**2) + Ctot*(32*Ctt**2 + 3*l**2*dCtt*(17*dCtt + 5*l*d2Ctt) + 2*l*Ctt*(61*dCtt + 15*l*d2Ctt)))
     
-    # Rest of terms remain the same
-    term1 = (-32 * A1 * ctot * ctt**2) + (80 * A2 * ctot * ctt**2)
-    term2 = (64 * A1 * l * ctt**2 * ctot_prime) + (-16 * A2 * l * ctt**2 * ctot_prime)
-    term3 = (-122 * A1 * l * ctot * ctt * ctt_prime) + (143 * A2 * l * ctot * ctt * ctt_prime)
-    term4 = (72 * A1 * l**2 * ctt * ctot_prime * ctt_prime) + (-18 * A2 * l**2 * ctt * ctot_prime * ctt_prime)
-    term5 = (-51 * A1 * l**2 * ctot * ctt_prime**2) + (69 * A2 * l**2 * ctot * ctt_prime**2)
-    term6 = (20 * A1 * l**3 * ctot_prime * ctt_prime**2) + (-5 * A2 * l**3 * ctot_prime * ctt_prime**2)
-    term7 = (-30 * A1 * l**2 * ctot * ctt * ctt_double_prime) + (21 * A2 * l**2 * ctot * ctt * ctt_double_prime)
-    term8 = (-15 * A1 * l**3 * ctot * ctt_prime * ctt_double_prime) + (15 * A2 * l**3 * ctot * ctt_prime * ctt_double_prime)
-    
-    return base * (term1 + term2 + term3 + term4 + term5 + term6 + term7 + term8)
+    term2 = A_L_half*Cpp_L*(-l*dCtot*(16*Ctt**2 + 18*l*Ctt*dCtt + 5*l**2*dCtt**2) + Ctot*(80*Ctt**2 + 3*l**2*dCtt*(23*dCtt + 5*l*d2Ctt) + l*Ctt*(143*dCtt + 21*l*d2Ctt)))
+
+    result = prefactor*(term1 - term2)
+
+    return result
+
+################ Main code ################
 
 # Normalisation
 phi_norm, phi_curl_norm = {}, {}
@@ -84,23 +106,22 @@ norm_factor_phi = interp1d(L, phi_norm['TT'], kind='cubic', bounds_error=False, 
 
 # Integration params
 l_min, l_max = 2, 2000
-pi_value = np.pi
 
 # Array of L values to calculate integral for
 lensingLarray = np.arange(2,1000,10)
 
-# Array to hold integral
+# output hold integral
 output = []
 
 for L in lensingLarray:
-    A1 = (1/(2*np.pi)**2)*norm_factor_phi(L) * cl_phi_interp(L/2)*cl_phi_interp(L/2)
-    A2 = (1/(2*np.pi)**2)*norm_factor_phi(L/2) * cl_phi_interp(L/2) * cl_phi_interp(L)
-
+    A_L = norm_factor_phi(L)
+    A_L_half = norm_factor_phi(L/2)
     # Using scipy's quad for numerical integration
-    result, error = quad(lambda l: compute_n2_bias(l, A1, A2, L, pi_value), l_min, l_max)
+    result, error = quad(lambda l: compute_n2_bias_folded(l, L, A_L, A_L_half), l_min, l_max)
     output.append(result)
 
 print(f"Integrated result: {output}")
 
 # Save as text file 
-np.savetxt('n2_bias_results.txt', (lensingLarray, output))
+np.savetxt('new_mathematica_N2_fold.txt', (lensingLarray, output))
+print('done 3k both')

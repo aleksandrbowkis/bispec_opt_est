@@ -111,7 +111,7 @@ def integrand_fn(lensingL, ell, cl_phi_interp, lcl_interp, ctot_interp, ctotprim
     #     24*A3*ell**2*ctot_interp(ell)*lcl_interp(ell)*lcldoubleprime_interp(ell) + 15*A1*ell**3*ctot_interp(ell)*lclprime_interp(ell)*lcldoubleprime_interp(ell) - 15*A3*ell**3*ctot_interp(ell)*lclprime_interp(ell)*lcldoubleprime_interp(ell))
     return integrand
 
-lensingLarray = np.arange(2,1000,100)
+lensingLarray = np.arange(2,1000,10)
 output_quad = []
 output_direct = []
 
