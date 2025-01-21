@@ -12,14 +12,14 @@ from scipy.integrate import quad
 
 ################ Parameters ###############
 
-lmax = 2000
+lmax = 3000
 Tcmb  = 2.726e6    # CMB temperature in microkelvin?
-rlmin, rlmax = 2, 2000 # CMB multipole range for reconstruction
+rlmin, rlmax = 2, 3000 # CMB multipole range for reconstruction
 nside = 2048
 bstype = 'equi'
 nsims = 448 # Number of simulations to average over (in sets of 3) 
 ellmin = 2 
-ellmax = 2000 ##### check!!!! vs sims
+ellmax = 3000 ##### check!!!! vs sims
 
 ################ Power spectra ################
 
@@ -108,7 +108,7 @@ output_quad = np.array(output_quad)
 output_direct = np.array(output_direct)
 
 # Save outputs
-np.savetxt('Low_L_equi.txt', (lensingLarray, output_quad))
+np.savetxt('Low_L_equi_rlmax3000.txt', (lensingLarray, output_quad))
 #np.savetxt('N0_l_factors_mathematica_TEST_direct_equi.txt', (lensingLarray, output_direct))
 #np.savetxt('norm_phi.txt', (L[:lmax+1],phi_norm['TT']))
 
