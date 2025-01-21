@@ -15,14 +15,14 @@ import curvedsky as cs
 
 ################ Parameters ###############
 
-lmax = 2000
+lmax = 3000
 Tcmb  = 2.726e6    # CMB temperature in microkelvin?
-rlmin, rlmax = 2, 2000 # CMB multipole range for reconstruction
+rlmin, rlmax = 2, 3000 # CMB multipole range for reconstruction
 nside = 2048
 bstype = 'fold'
 nsims = 448 # Number of simulations to average over (in sets of 3) 
 ellmin = 2 
-ellmax = 2000 ##### 30/09/24 CHANGED TO 3000 CF SIMULATED RESULTS
+ellmax = 3000 ##### 30/09/24 CHANGED TO 3000 CF SIMULATED RESULTS
 
 ################ Power spectra ################
 
@@ -63,8 +63,9 @@ def integrand_fn(ell, cl_phi_interp, lcl_interp, ctot_interp, ctotprime_interp, 
     A1 = (1/(2*np.pi)**2)*norm_factor_phi(L1) * cl_phi_interp(L2)*cl_phi_interp(L3)
     A2 = (1/(2*np.pi)**2)*norm_factor_phi(L2) * cl_phi_interp(L1)*cl_phi_interp(L3)
     A3 = (1/(2*np.pi)**2)*norm_factor_phi(L3) * cl_phi_interp(L2)*cl_phi_interp(L1)
+    kappa_conversion = L1*(L1+1)*L2*(L2+1)*L3*(L3+1)/8
 
-    integrand = 1 / (32 * ctot_interp(ell) ** 3)*(L1+1)*(L2+1)*(L3+1)**2*np.pi*ell*(2*ell*ctotprime_interp(ell)*(8*(3*(A1*L1**2+A2*L2**2)*np.cos(x1-x2)+(A1*L1**2+A2*L2**2)*np.cos(x1+x2-2*x3) +
+    integrand = kappa_conversion*1 / (32 * ctot_interp(ell) ** 3)*(L1+1)*(L2+1)*(L3+1)**2*np.pi*ell*(2*ell*ctotprime_interp(ell)*(8*(3*(A1*L1**2+A2*L2**2)*np.cos(x1-x2)+(A1*L1**2+A2*L2**2)*np.cos(x1+x2-2*x3) +
                                                                                                     A3*L1*L3*(np.cos(2*x1-x2-x3)+3*np.cos(x2-x3)))*lcl_interp(ell)**2+2*ell*(13*(A1*L1**2+A2*L2**2)*np.cos(x1-x2)+5*(A1*L1**2+A2*L2**2)*np.cos(x1+x2-2*x3)+A3*L1*L3*(5*np.cos(2*x1-x2-x3)+13*np.cos(x2-x3)))*lcl_interp(ell)*lclprime_interp(ell) + 
                                                                                                                                                                              ell**2*(6*(A1*L1**2+A2*L2**2)*np.cos(x1-x2)+A3*L1*L3*np.cos(2*x1+x2-3*x3)+A1*L1**2*np.cos(3*x1-x2-2*x3)+3*A1*L1**2*np.cos(x1+x2-2*x3)+3*A2*L2**2*np.cos(x1+x2-2*x3)+3*A3*L1*L3*np.cos(2*x1-x2-x3)+6*A3*L1*L3*np.cos(x2-x3)+A2*L2**2*np.cos(x1-3*x2+2*x3))*lclprime_interp(ell)**2)+
                                                                                                                                                                              ctot_interp(ell)*(64*(A3*L1**2*np.cos(x1-x2)+A2*L2*L3*np.cos(x1-x3)+A1*L1*L3*np.cos(x2-x3))*lcl_interp(ell)**2-2*ell*lcl_interp(ell)*(((27*A1*L1**2 - 50*A3*L1**2+27*A2*L2**2)*np.cos(x1-x2)+9*(A1*L1**2+A2*L2**2)*np.cos(x1+x2-2*x3)+
