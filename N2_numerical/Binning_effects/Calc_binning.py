@@ -26,8 +26,8 @@ def find_angles(L1, L2, L3):
 
     # All angles calculated from x axis anticlockwise. L1 aligned with x axis then continues anticlockwise to L2 then L3
     x1 = 0
-    x2 = np.pi - theta1
-    x3 = (np.pi - (theta1+theta2)) + np.pi
+    x2 = np.pi - theta3
+    x3 = 2*np.pi - (theta1+theta3)
     return x1, x2, x3
 
 
@@ -51,7 +51,7 @@ print(x1, x2, x3)
 ################ Main ############
 
 # Now define binning scheme. Note this only up to L of 100 atm
-bin_edges = [20,40,60,80,100] #,200,300,400,500, 600, 700, 800, 900, 1000]
+bin_edges = [20,40,60,80,100] #200,300] #400,500, 600, 700, 800, 900, 1000]
 bin_edges = np.array(bin_edges)
 bin_mid = 0.5 * (bin_edges[1:] + bin_edges[:-1])
 averaged_N2_bin = []
@@ -74,4 +74,4 @@ for i in range(len(bin_edges) - 1):
     averaged_N2_bin.append(average_N2_in_this_bin)
 
 # Save
-np.save('binned_calc.npy', (bin_mid,averaged_N2_bin))
+np.save('binning_tests_outputs/binned_equilateral.npy', (bin_mid, averaged_N2_bin))
