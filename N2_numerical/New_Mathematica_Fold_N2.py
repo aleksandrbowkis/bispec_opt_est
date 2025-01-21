@@ -19,7 +19,8 @@ from scipy.integrate import quad
 
 ################ Parameters ###############
 
-lmax = 3000
+l_min = 2
+l_max = 3000
 Tcmb  = 2.726e6    # CMB temperature in microkelvin?
 rlmin, rlmax = 2, 3000 # CMB multipole range for reconstruction
 nside = 2048
@@ -104,9 +105,6 @@ phi_norm, phi_curl_norm = {}, {}
 phi_norm['TT'], phi_curl_norm['TT'] = cs.norm_quad.qtt('lens',rlmax,rlmin,rlmax,lcl,ocl,lfac='')
 norm_factor_phi = interp1d(L, phi_norm['TT'], kind='cubic', bounds_error=False, fill_value="extrapolate")
 
-# Integration params
-l_min, l_max = 2, 2000
-
 # Array of L values to calculate integral for
 lensingLarray = np.arange(2,1000,10)
 
@@ -124,4 +122,4 @@ print(f"Integrated result: {output}")
 
 # Save as text file 
 np.savetxt('new_mathematica_N2_fold.txt', (lensingLarray, output))
-print('done 3k both')
+print(f'done l_max: {l_max} ellmax: {ellmax}')
