@@ -1,0 +1,8 @@
+Traceback (most recent call last):
+  File "Calc_binning.py", line 11, in <module>
+    from full_N2 import do_N2_integral # New full N2 calculation
+  File "/home/amb257/kappa_bispec/bispec_opt_est/N2_numerical/Binning_effects/full_n2_bias_calculation/full_N2.py", line 14, in <module>
+    from config import CMBConfig # Import CMBConfig class from config.py
+  File "/home/amb257/kappa_bispec/bispec_opt_est/Configuration/config.py", line 6, in <module>
+    sys.path.append('/home/amb257/software/cmplx_cmblensplus/wrap')
+NameError: name 'sys' is not defined

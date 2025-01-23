@@ -6,7 +6,14 @@ import time
 sys.path.append('/home/amb257/software/cmplx_cmblensplus/wrap')
 sys.path.append('/home/amb257/software/cmplx_cmblensplus/utils')
 import curvedsky as cs
-from full_N2_series_integral import calculate_N2
+sys.path.append('/home/amb257/kappa_bispec/bispec_opt_est/N2_numerical/Binning_effects/full_n2_bias_calculation') # Add path to full_N2.py
+#from full_N2_series_integral import calculate_N2 # Old full N2 calculation
+from full_N2 import do_N2_integral # New full N2 calculation
+sys.path.append('/home/amb257/kappa_bispec/bispec_opt_est/Configuration/') # Add path to configuration file include power spectra etc
+from config import CMBConfig # Import CMBConfig class from config.py
+
+# Import configuration class. can now do config.ctot_interp(l) etc.
+config = CMBConfig()
 
 def find_triangles(bin_min, bin_max):
     """Vectorized triangle finding with pre-allocated arrays for better memory efficiency"""
@@ -19,8 +26,8 @@ def find_triangles(bin_min, bin_max):
     mask = ((L1 + L2 > L3) & 
             (L2 + L3 > L1) & 
             (L3 + L1 > L2) & 
-            (L1 <= L2) & 
-            (L2 <= L3))
+            (L3 <= L2) & 
+            (L2 <= L1))
     
     # Find indices where mask is True
     valid_indices = np.where(mask)
@@ -62,13 +69,13 @@ def find_angles(L1, L2, L3):
     x3 = 2*np.pi - (theta1 + theta3)
     return x1, x2, x3
 
-def process_triangle(triangle):
+def process_triangle(triangle, config):
     """Process a single triangle - used by multiprocessing"""
     L1, L2, L3 = triangle
     x1, x2, x3 = find_angles(L1, L2, L3)
-    return calculate_N2(L1, L2, L3, x1, x2, x3)
+    return do_N2_integral(L1, L2, L3, x1, x2, x3, config.cl_phi_interp, config.ctot_interp, config.lcl_interp, config.ctotprime_interp, config.lclprime_interp, config.lcldoubleprime_interp, config.norm_factor_phi)
 
-def process_bin(bin_edges, num_processes=None, fold=False):
+def process_bin(bin_edges, config, num_processes=None, fold=False):
     """Process all bins with multiprocessing"""
     bin_mid = 0.5 * (bin_edges[1:] + bin_edges[:-1])
     averaged_N2_bin = []
@@ -84,8 +91,8 @@ def process_bin(bin_edges, num_processes=None, fold=False):
                 # Get triangles for this bin
                 triangles = find_triangles(bin_min, bin_max)
                 
-                # Process triangles in parallel
-                N2_values = pool.map(process_triangle, triangles)
+                # Process triangles in parallel. Partial creates specialised function with config as a fixed argument
+                N2_values = pool.map(partial(process_triangle, config=config), triangles)
                 
                 # Calculate average for this bin
                 if N2_values:
@@ -108,7 +115,7 @@ def process_bin(bin_edges, num_processes=None, fold=False):
                 triangles = find_folded_triangles(bin_min, bin_max)
 
                 # Process triangles in parallel
-                N2_values = pool.map(process_triangle, triangles)
+                N2_values = pool.map(partial(process_triangle, config=config), triangles)
 
                 # Calculate average for this bin
                 if N2_values:
@@ -130,12 +137,12 @@ def main():
     start_time = time.time()
     
     # Process all bins
-    bin_mid, averaged_N2_bin_equi = process_bin(bin_edges, num_processes=None, fold=False)
-    _, averaged_N2_bin_fold = process_bin(bin_edges, num_processes=None, fold=True)
+    bin_mid, averaged_N2_bin_equi = process_bin(bin_edges, config, num_processes=None, fold=False)
+    _, averaged_N2_bin_fold = process_bin(bin_edges, config, num_processes=None, fold=True)
     
     # Save results
-    np.save('binning_tests_outputs/binned_equilateral.npy', (bin_mid, averaged_N2_bin_equi))
-    np.save('binning_tests_outputs/binned_folded.npy', (bin_mid, averaged_N2_bin_fold))
+    np.save('../outputs/binned_equilateral.npy', (bin_mid, averaged_N2_bin_equi))
+    np.save('../outputs/binned_folded.npy', (bin_mid, averaged_N2_bin_fold))
     
     end_time = time.time()
     print(f"Total execution time: {end_time - start_time:.2f} seconds")

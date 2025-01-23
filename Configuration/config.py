@@ -3,6 +3,10 @@ Defines all parameters and interpolates all CMB spectra used in bispectrum estim
 
 import numpy as np
 from scipy.interpolate import interp1d
+import sys, os
+sys.path.append('/home/amb257/software/cmplx_cmblensplus/wrap')
+sys.path.append('/home/amb257/software/cmplx_cmblensplus/utils')
+import curvedsky as cs # for quadratic estimator normalisation
 
 class CMBConfig:
     def __init__(self):
@@ -46,6 +50,10 @@ class CMBConfig:
                        (self.theta_fwhm * self.arcmin2radfactor)**2 / np.log(2.) / 8.)
         
         self.ocl = np.copy(self.lcl) + self.noise_cl
+
+        # Calculate normalisation factors
+        self.phi_norm, self.phi_curl_norm = cs.norm_quad.qtt('lens', self.rlmax, self.rlmin, self.rlmax, self.lcl, self.ocl, lfac='')
+        self.norm_factor_phi = interp1d(self.L, self.phi_norm, kind='cubic', bounds_error=False, fill_value="extrapolate")
         
         # Create interpolation functions
         self._initialize_interpolations()
