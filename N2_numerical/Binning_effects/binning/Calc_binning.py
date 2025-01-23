@@ -131,7 +131,7 @@ def process_bin(bin_edges, config, num_processes=None, fold=False):
 
 def main():
     # Define binning scheme
-    bin_edges = np.array([20, 40, 60, 80, 100, 200])
+    bin_edges = np.array([20, 40, 60, 80, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000])
     
     # Time the execution
     start_time = time.time()
