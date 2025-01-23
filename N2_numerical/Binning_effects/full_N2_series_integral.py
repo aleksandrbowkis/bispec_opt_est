@@ -80,7 +80,7 @@ def integrand_fn(ell, cl_phi_interp, lcl_interp, ctot_interp, ctotprime_interp, 
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               6*A3*L1*L3*np.cos(x2-x3)+3*A2*L2*L3*np.cos(x1-2*x2+x3)-A2*L2**2*np.cos(x1-3*x2+2*x3))*lcldoubleprime_interp(ell))))
     return integrand
 
-def calculate_N2(L1, L2, L3, x1, x2, x3, ellmin=2, ellmax=2000):
+def calculate_N2(L1, L2, L3, x1, x2, x3, ellmin=2, ellmax=3000):
     """
     Calculate the N2 bias for a given triangle configuration.
     
@@ -90,7 +90,7 @@ def calculate_N2(L1, L2, L3, x1, x2, x3, ellmin=2, ellmax=2000):
     x1, x2, x3 : float
         Angles of the triangle.
     ellmin, ellmax : int, optional
-        Integration range over multipoles (default: 2 to 2000).
+        Integration range over multipoles (default: 2 to 3000).
     
     Returns:
     N2_bias : float
