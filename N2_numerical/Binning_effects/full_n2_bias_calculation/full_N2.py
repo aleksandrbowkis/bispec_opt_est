@@ -42,11 +42,6 @@ def calculate_n2_integrand(l, L1, L2, L3, x1, x2, x3, cphi_interp, ctot_interp, 
     Ctot_prime = ctotprime_interp(l)
     Ctt_prime = lclprime_interp(l)
     Ctt_doubleprime = lcldoubleprime_interp(l)
-
-    # Define all normalisations
-    A_L1 = norm_phi_interp(L1)
-    A_L2 = norm_phi_interp(L2)
-    A_L3 = norm_phi_interp(L3)
     
     # Precompute some common cosine terms
     cos_x1_m_x2 = np.cos(x1 - x2)
@@ -87,7 +82,7 @@ def calculate_n2_integrand(l, L1, L2, L3, x1, x2, x3, cphi_interp, ctot_interp, 
     prefactor = -(1 / (128 * np.pi * Ctot**3))
     kappa_factor = L1*(L1+1) * L2*(L2+1) * L3*(L3+1) / 8
     
-    result = kappa_factor * prefactor * l * L1**2 * L2 * L3**2 * A_L1 * cphi_interp(L2) * cphi_interp(L3) * (term1 + term2)
+    result = kappa_factor * prefactor * l * L1**2 * L2 * L3**2 * norm_phi_interp(L1) * cphi_interp(L2) * cphi_interp(L3) * (term1 + term2)
     
     return result
 
