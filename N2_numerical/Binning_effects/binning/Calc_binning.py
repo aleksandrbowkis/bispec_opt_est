@@ -141,8 +141,8 @@ def main():
     _, averaged_N2_bin_fold = process_bin(bin_edges, config, num_processes=None, fold=True)
     
     # Save results
-    np.save('../outputs/binned_equilateral.npy', (bin_mid, averaged_N2_bin_equi))
-    np.save('../outputs/binned_folded.npy', (bin_mid, averaged_N2_bin_fold))
+    np.save('../outputs/binned_equilateral_2.npy', (bin_mid, averaged_N2_bin_equi))
+    np.save('../outputs/binned_folded_2.npy', (bin_mid, averaged_N2_bin_fold))
     
     end_time = time.time()
     print(f"Total execution time: {end_time - start_time:.2f} seconds")
