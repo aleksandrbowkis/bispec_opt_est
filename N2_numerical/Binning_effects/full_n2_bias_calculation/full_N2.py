@@ -145,8 +145,8 @@ if __name__ == '__main__':
         L2_fd = lensingL/2
         L3_fd = lensingL/2
 
-        integral_fd = do_N2_integral(L1_fd, L2_fd, L3_fd, x1_fd, x2_fd, x3_fd, config.cl_phi_interp, config.ctot_interp, config.lcl_interp, config.ctotprime_interp, config.lclprime_interp, config.lcldoubleprime_interp, norm_factor_phi, config.ellmin, config.ellmax)
-        integral_eq = do_N2_integral(L1_eq, L2_eq, L3_eq, x1_eq, x2_eq, x3_eq, config.cl_phi_interp, config.ctot_interp, config.lcl_interp, config.ctotprime_interp, config.lclprime_interp, config.lcldoubleprime_interp, norm_factor_phi, config.ellmin, config.ellmax)
+        integral_fd = do_N2_integral(L1_fd, L2_fd, L3_fd, x1_fd, x2_fd, x3_fd, config.cl_phi_interp, config.ctot_interp, config.lcl_interp, config.ctotprime_interp, config.lclprime_interp, config.lcldoubleprime_interp, config.norm_factor_phi, config.ellmin, config.ellmax)
+        integral_eq = do_N2_integral(L1_eq, L2_eq, L3_eq, x1_eq, x2_eq, x3_eq, config.cl_phi_interp, config.ctot_interp, config.lcl_interp, config.ctotprime_interp, config.lclprime_interp, config.lcldoubleprime_interp, config.norm_factor_phi, config.ellmin, config.ellmax)
 
         output_fd.append(integral_fd)
         output_eq.append(integral_eq)
