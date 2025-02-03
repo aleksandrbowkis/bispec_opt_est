@@ -31,7 +31,7 @@ def non_series_N2_full_integrand(l, L1, L2, L3, xl, x1, x2, x3,config):
     # Get interpolated values
     Ctot = config.ctot_interp
     Ctt = config.lcl_interp
-    Cpp = config.cphi_interp
+    Cpp = config.cl_phi_interp
     norm_phi = config.norm_factor_phi
     
     # Precompute some common cosine terms
@@ -74,5 +74,46 @@ def do_non_series_integral(L1, L2, L3, x1, x2, x3, config, ellmin = 2, ellmax = 
     return perm1 + perm2 + perm3
 
 
+if __name__ == '__main__':
+    #This runs if program called as script
+    # Define L values to compute integral for
+    lensingLarray = np.arange(2, 1000, 10)
+    # Output arrays
+    output_fd = []
+    output_eq = []
 
+    #Define triangle shape for equilateral:
+    x1_eq = 0
+    x2_eq = 2*np.pi/3
+    x3_eq = 4*np.pi/3
+
+    # Define triangle shape for folded:
+    x1_fd = 0
+    x2_fd = np.pi
+    x3_fd = np.pi
+
+    for lensingL in lensingLarray:
+        #Define triangle side lengths (equilateral):
+        L1_eq = lensingL
+        L2_eq = lensingL
+        L3_eq = lensingL
+
+        #Define triangle side lengths (folded):
+        L1_fd = lensingL
+        L2_fd = lensingL/2
+        L3_fd = lensingL/2
+
+        integral_fd = do_non_series_integral(L1_fd, L2_fd, L3_fd, x1_fd, x2_fd, x3_fd, config, 2, 3000)
+        integral_eq = do_non_series_integral(L1_eq, L2_eq, L3_eq, x1_eq, x2_eq, x3_eq, config, 2, 3000)
+
+        output_fd.append(integral_fd)
+        output_eq.append(integral_eq)
+
+    # Change outputs to numpy arrays
+    output_fd = np.array(output_fd)
+    output_eq = np.array(output_eq)
+
+    # Save result
+    np.savetxt('../outputs/noseries_foldN2_from_full_int.txt', (lensingLarray, output_fd))
+    np.savetxt('../outputs/noseries_equilN2_from_full_int.txt', (lensingLarray, output_eq))
 

@@ -6,12 +6,14 @@ import time
 sys.path.append('/home/amb257/software/cmplx_cmblensplus/wrap')
 sys.path.append('/home/amb257/software/cmplx_cmblensplus/utils')
 import curvedsky as cs
+
 sys.path.append('/home/amb257/kappa_bispec/bispec_opt_est/N2_numerical/Binning_effects/full_n2_bias_calculation') # Add path to full_N2.py
-#from full_N2_series_integral import calculate_N2 # Old full N2 calculation
+sys.path.append('/home/amb257/kappa_bispec/bispec_opt_est/N2_numerical/Binning_effects/non_series') # Add path to full_non_series_N2.py
 from full_N2 import do_N2_integral # New full N2 calculation
+from full_non_series_N2 import do_non_series_integral # Import non-series N2 calculation
+
 sys.path.append('/home/amb257/kappa_bispec/bispec_opt_est/Configuration/') # Add path to configuration file include power spectra etc
 from config import CMBConfig # Import CMBConfig class from config.py
-
 # Import configuration class. can now do config.ctot_interp(l) etc.
 config = CMBConfig()
 
@@ -75,74 +77,128 @@ def process_triangle(triangle, config):
     x1, x2, x3 = find_angles(L1, L2, L3)
     return do_N2_integral(L1, L2, L3, x1, x2, x3, config.cl_phi_interp, config.ctot_interp, config.lcl_interp, config.ctotprime_interp, config.lclprime_interp, config.lcldoubleprime_interp, config.norm_factor_phi)
 
-def process_bin(bin_edges, config, num_processes=None, fold=False):
+def process_triangle_noseries(triangle, config):
+    """Process a single triangle using nonseries approximation - used by multiprocessing"""
+    L1, L2, L3 = triangle
+    x1, x2, x3 = find_angles(L1, L2, L3)
+    return do_non_series_integral(L1, L2, L3, x1, x2, x3, config)
+
+def process_bin(bin_edges, config, num_processes=None, fold=False, series=True):
     """Process all bins with multiprocessing"""
     bin_mid = 0.5 * (bin_edges[1:] + bin_edges[:-1])
     averaged_N2_bin = []
     
     if fold == False:
-        # Create a pool of workers
-        with Pool(processes=num_processes) as pool:
-            for i in range(len(bin_edges) - 1):
-                bin_min = bin_edges[i]
-                bin_max = bin_edges[i + 1]
-                print(f"Processing bin {i+1}/{len(bin_edges)-1}: {bin_min}-{bin_max}")
-                
-                # Get triangles for this bin
-                triangles = find_triangles(bin_min, bin_max)
-                
-                # Process triangles in parallel. Partial creates specialised function with config as a fixed argument
-                N2_values = pool.map(partial(process_triangle, config=config), triangles)
-                
-                # Calculate average for this bin
-                if N2_values:
-                    avg_N2 = np.mean(N2_values)
-                else:
-                    avg_N2 = 0
-                averaged_N2_bin.append(avg_N2)
-                
-                # Print progress
-                print(f"Completed bin {i+1} with {len(triangles)} triangles")
+        if series == True:
+            # Create a pool of workers
+            with Pool(processes=num_processes) as pool:
+                for i in range(len(bin_edges) - 1):
+                    bin_min = bin_edges[i]
+                    bin_max = bin_edges[i + 1]
+                    print(f"Processing bin {i+1}/{len(bin_edges)-1}: {bin_min}-{bin_max}")
+                    
+                    # Get triangles for this bin
+                    triangles = find_triangles(bin_min, bin_max)
+                    
+                    # Process triangles in parallel. Partial creates specialised function with config as a fixed argument
+                    N2_values = pool.map(partial(process_triangle, config=config), triangles)
+                    
+                    # Calculate average for this bin
+                    if N2_values:
+                        avg_N2 = np.mean(N2_values)
+                    else:
+                        avg_N2 = 0
+                    averaged_N2_bin.append(avg_N2)
+                    
+                    # Print progress
+                    print(f"Completed bin {i+1} with {len(triangles)} triangles")
+        else:
+            # Create a pool of workers
+            with Pool(processes=num_processes) as pool:
+                for i in range(len(bin_edges) - 1):
+                    bin_min = bin_edges[i]
+                    bin_max = bin_edges[i + 1]
+                    print(f"Processing bin {i+1}/{len(bin_edges)-1}: {bin_min}-{bin_max}")
+                    
+                    # Get triangles for this bin
+                    triangles = find_triangles(bin_min, bin_max)
+                    
+                    # Process triangles in parallel. Partial creates specialised function with config as a fixed argument
+                    N2_values = pool.map(partial(process_triangle_noseries, config=config), triangles)
+                    
+                    # Calculate average for this bin
+                    if N2_values:
+                        avg_N2 = np.mean(N2_values)
+                    else:
+                        avg_N2 = 0
+                    averaged_N2_bin.append(avg_N2)
+                    
+                    # Print progress
+                    print(f"Completed NO SERIES bin {i+1} with {len(triangles)} triangles")
     else:
-        # Create a pool of workers
-        with Pool(processes=num_processes) as pool:
-            for i in range(len(bin_edges) - 1):
-                bin_min = bin_edges[i]
-                bin_max = bin_edges[i + 1]
-                print(f"Processing folded bin {i+1}/{len(bin_edges)-1}: {bin_min}-{bin_max}")
+        if series == True:
+            # Create a pool of workers
+            with Pool(processes=num_processes) as pool:
+                for i in range(len(bin_edges) - 1):
+                    bin_min = bin_edges[i]
+                    bin_max = bin_edges[i + 1]
+                    print(f"Processing folded bin {i+1}/{len(bin_edges)-1}: {bin_min}-{bin_max}")
 
-                # Get triangles for this bin
-                triangles = find_folded_triangles(bin_min, bin_max)
+                    # Get triangles for this bin
+                    triangles = find_folded_triangles(bin_min, bin_max)
 
-                # Process triangles in parallel
-                N2_values = pool.map(partial(process_triangle, config=config), triangles)
+                    # Process triangles in parallel
+                    N2_values = pool.map(partial(process_triangle, config=config), triangles)
 
-                # Calculate average for this bin
-                if N2_values:
-                    avg_N2 = np.mean(N2_values)
-                else:
-                    avg_N2 = 0
-                averaged_N2_bin.append(avg_N2)
-                
-                # Print progress
-                print(f"Completed bin {i+1} with {len(triangles)} triangles")
+                    # Calculate average for this bin
+                    if N2_values:
+                        avg_N2 = np.mean(N2_values)
+                    else:
+                        avg_N2 = 0
+                    averaged_N2_bin.append(avg_N2)
+                    
+                    # Print progress
+                    print(f"Completed bin {i+1} with {len(triangles)} triangles")
+        else:
+            # Create a pool of workers
+            with Pool(processes=num_processes) as pool:
+                for i in range(len(bin_edges) - 1):
+                    bin_min = bin_edges[i]
+                    bin_max = bin_edges[i + 1]
+                    print(f"Processing folded bin {i+1}/{len(bin_edges)-1}: {bin_min}-{bin_max}")
+
+                    # Get triangles for this bin
+                    triangles = find_folded_triangles(bin_min, bin_max)
+
+                    # Process triangles in parallel
+                    N2_values = pool.map(partial(process_triangle_noseries, config=config), triangles)
+
+                    # Calculate average for this bin
+                    if N2_values:
+                        avg_N2 = np.mean(N2_values)
+                    else:
+                        avg_N2 = 0
+                    averaged_N2_bin.append(avg_N2)
+                    
+                    # Print progress
+                    print(f"Completed No SERIES bin {i+1} with {len(triangles)} triangles")
     
     return bin_mid, np.array(averaged_N2_bin)
 
 def main():
     # Define binning scheme
-    bin_edges = np.array([20, 40, 60, 80, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000])
+    bin_edges = np.array([20, 40, 60, 80, 100, 200])#, 300, 400, 500, 600, 700, 800, 900, 1000])
     
     # Time the execution
     start_time = time.time()
     
     # Process all bins
-    bin_mid, averaged_N2_bin_equi = process_bin(bin_edges, config, num_processes=None, fold=False)
-    _, averaged_N2_bin_fold = process_bin(bin_edges, config, num_processes=None, fold=True)
+    bin_mid, averaged_N2_bin_equi = process_bin(bin_edges, config, num_processes=None, fold=False, series=False)
+    _, averaged_N2_bin_fold = process_bin(bin_edges, config, num_processes=None, fold=True, series=False)
     
     # Save results
-    np.save('../outputs/binned_equilateral_2.npy', (bin_mid, averaged_N2_bin_equi))
-    np.save('../outputs/binned_folded_2.npy', (bin_mid, averaged_N2_bin_fold))
+    np.save('../outputs/no_series_binned_equilateral.npy', (bin_mid, averaged_N2_bin_equi))
+    np.save('../outputs/no_series_binned_folded.npy', (bin_mid, averaged_N2_bin_fold))
     
     end_time = time.time()
     print(f"Total execution time: {end_time - start_time:.2f} seconds")
