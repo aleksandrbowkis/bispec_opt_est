@@ -1,4 +1,6 @@
 """
+    SUPERCEDED BY full_n2_bias_calculation/full_N2.py!!! 
+    Remaining here for comparison until completion of N2 numerical investigation
     Computes the N2 bias to the reconstructed lensing bispectrum. Can then be called for specific triangle configurations.
     Used in investigation of binning effect at low multipoles
 """
