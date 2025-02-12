@@ -1,0 +1,25 @@
+multiprocessing.pool.RemoteTraceback: 
+"""
+Traceback (most recent call last):
+  File "/home/amb257/.conda/envs/cmplx_fld_lensplus/lib/python3.6/multiprocessing/pool.py", line 119, in worker
+    result = (True, func(*args, **kwds))
+  File "/home/amb257/.conda/envs/cmplx_fld_lensplus/lib/python3.6/multiprocessing/pool.py", line 44, in mapstar
+    return list(map(*args))
+  File "Fold_no_series.py", line 204, in compute_single_L
+    return lensingL, usevegas_do_fold_no_series_integral(L1, L2, L3, config)
+  File "Fold_no_series.py", line 192, in usevegas_do_fold_no_series_integral
+    result = integ(integrand_2d, nitn=100, neval=100000)
+  File "src/vegas/_vegas.pyx", line 2012, in vegas._vegas.Integrator.__call__
+ValueError: integrand evaluates to nan
+"""
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "Fold_no_series.py", line 218, in <module>
+    results = pool.map(compute_func, lensingLarray)
+  File "/home/amb257/.conda/envs/cmplx_fld_lensplus/lib/python3.6/multiprocessing/pool.py", line 266, in map
+    return self._map_async(func, iterable, mapstar, chunksize).get()
+  File "/home/amb257/.conda/envs/cmplx_fld_lensplus/lib/python3.6/multiprocessing/pool.py", line 644, in get
+    raise self._value
+ValueError: integrand evaluates to nan
