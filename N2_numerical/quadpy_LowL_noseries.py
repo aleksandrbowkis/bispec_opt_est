@@ -117,7 +117,7 @@ output = []
 
 for lensingL in lensingLarray:
     L1, L2, L3 = make_equilateral_L(lensingL)
-    result = quadpy.double_adapt(lambda x, y: integrand_N2(x, y, L1, L2, L3, lcl_interp, ctot_interp,cl_phi_interp), [ellmin, ellmax], [ellmin, ellmax], scheme)
+    result = quadpy.double_adapt(lambda x, y: integrand_N2(x, y, L1, L2, L3, lcl_interp, ctot_interp,cl_phi_interp), [-ellmax, ellmax], [-ellmax, ellmax], scheme)
     value = result.value
     value *= phi_norm['TT'][int(lensingL)]
 
@@ -128,4 +128,4 @@ print(output)
 output_dir = "scipy_results"
 os.makedirs(output_dir, exist_ok=True)
 np.save(os.path.join(output_dir, "L.npy"), lensingLarray)
-np.save(os.path.join(output_dir, "quadpy_lowL_noseries.npy"), output)
+np.save(os.path.join(output_dir, "2025_quadpy_lowL_noseries.npy"), output)
