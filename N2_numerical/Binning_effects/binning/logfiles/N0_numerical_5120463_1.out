@@ -4,12 +4,4 @@ Loading rhel7/default-peta4
     rhel7/global intel/compilers/2017.4 intel/mkl/2017.4 intel/impi/2017.4/intel
     intel/libs/idb/2017.4 intel/libs/tbb/2017.4 intel/libs/ipp/2017.4
     intel/libs/daal/2017.4 intel/bundles/complib/2017.4 cmake/latest
-result = 0.000 ± 0.000
-result = 0.000 ± 0.000
-result = 0.000 ± 0.000
-result = 0.000 ± 0.000
-result = 0.000 ± 0.000
-result = -0.000 ± 0.000
-result = 0.000 ± 0.000
-result = -0.000 ± 0.000
-result = 0.000 ± 0.000
+Processing bin 1/4: 20-40
