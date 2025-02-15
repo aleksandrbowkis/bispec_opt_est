@@ -1,0 +1,81 @@
+F_l_L1: 426.7998672089105
+kappa_factor: 3.0
+Error computing L=2.0: name 'common_factor' is not defined
+F_l_L1: 15349.473753424256
+kappa_factor: 34398.0
+Error computing L=12.0: name 'common_factor' is not defined
+F_l_L1: 108964.67053877347
+kappa_factor: 9765888.0
+Error computing L=32.0: name 'common_factor' is not defined
+F_l_L1: 51546.133122549196
+kappa_factor: 1102068.0
+Error computing L=22.0: name 'common_factor' is not defined
+F_l_L1: 187561.06698465062
+kappa_factor: 48184983.0
+Error computing L=42.0: name 'common_factor' is not defined
+F_l_L1: 287292.4832570024
+kappa_factor: 169770978.0
+Error computing L=52.0: name 'common_factor' is not defined
+F_l_L1: 7396789.89936164
+kappa_factor: 3222259517568.0
+Error computing L=272.0: name 'common_factor' is not defined
+F_l_L1: 408117.728331072
+kappa_factor: 480469248.0
+Error computing L=62.0: name 'common_factor' is not defined
+F_l_L1: 549999.5546219577
+kappa_factor: 1165665168.0
+Error computing L=72.0: name 'common_factor' is not defined
+F_l_L1: 8377638.4785539815
+kappa_factor: 4926073254858.0
+Error computing L=292.0: name 'common_factor' is not defined
+F_l_L1: 896659.3937733418
+kappa_factor: 4999103958.0
+Error computing L=92.0: name 'common_factor' is not defined
+F_l_L1: 7885143.767623733
+kappa_factor: 3999083488263.0
+Error computing L=282.0: name 'common_factor' is not defined
+F_l_L1: 712866.6521027505
+kappa_factor: 2522715363.0
+Error computing L=82.0: name 'common_factor' is not defined
+F_l_L1: 1101274.6082335017
+kappa_factor: 9236223828.0
+Error computing L=102.0: name 'common_factor' is not defined
+F_l_L1: 12625080.58767165
+kappa_factor: 24594689369088.0
+Error computing L=382.0: name 'common_factor' is not defined
+F_l_L1: 13416871.163327418
+kappa_factor: 33383815072803.0
+Error computing L=402.0: name 'common_factor' is not defined
+F_l_L1: 1572436.9423447037
+kappa_factor: 26829835143.0
+Error computing L=122.0: name 'common_factor' is not defined
+F_l_L1: 1326582.55469027
+kappa_factor: 16118782848.0
+Error computing L=112.0: name 'common_factor' is not defined
+F_l_L1: 13031914.463865608
+kappa_factor: 28710002177808.0
+Error computing L=392.0: name 'common_factor' is not defined
+F_l_L1: 1838612.067811038
+kappa_factor: 42911437338.0
+Error computing L=132.0: name 'common_factor' is not defined
+F_l_L1: 2124838.063999589
+kappa_factor: 66330929808.0
+Error computing L=142.0: name 'common_factor' is not defined
+F_l_L1: 2430792.4942184864
+kappa_factor: 99552842928.0
+Error computing L=152.0: name 'common_factor' is not defined
+F_l_L1: 15152986.518974023
+kappa_factor: 76794993708048.0
+Error computing L=462.0: name 'common_factor' is not defined
+F_l_L1: 2756037.9751501936
+kappa_factor: 145616428323.0
+Error computing L=162.0: name 'common_factor' is not defined
+F_l_L1: 3100118.497663409
+kappa_factor: 208218815118.0
+Error computing L=172.0: name 'common_factor' is not defined
+F_l_L1: 3462483.7967808763
+kappa_factor: 291803791188.0
+Error computing L=182.0: name 'common_factor' is not defined
+F_l_L1: 14940401.597561043
+kappa_factor: 67362041798778.0
+Error computing L=452.0: name 'common_factor' is not defined

@@ -10,7 +10,7 @@ import curvedsky as cs
 sys.path.append('/home/amb257/kappa_bispec/bispec_opt_est/N2_numerical/Binning_effects/full_n2_bias_calculation') # Add path to full_N2.py
 sys.path.append('/home/amb257/kappa_bispec/bispec_opt_est/N2_numerical/Binning_effects/non_series') # Add path to full_non_series_N2.py
 from full_N2 import do_N2_integral # New full N2 calculation
-from full_non_series_N2 import do_non_series_integral # Import non-series N2 calculation
+from Fold_no_series import usevegas_do_fold_no_series_integral # Import non-series N2 calculation 
 
 sys.path.append('/home/amb257/kappa_bispec/bispec_opt_est/Configuration/') # Add path to configuration file include power spectra etc
 from config import CMBConfig # Import CMBConfig class from config.py
@@ -79,9 +79,13 @@ def process_triangle(triangle, config):
 
 def process_triangle_noseries(triangle, config):
     """Process a single triangle using nonseries approximation - used by multiprocessing"""
-    L1, L2, L3 = triangle
-    x1, x2, x3 = find_angles(L1, L2, L3)
-    return do_non_series_integral(L1, L2, L3, x1, x2, x3, config)
+    L1_mag, L2_mag, L3_mag = triangle
+    x1, x2, x3 = find_angles(L1_mag, L2_mag, L3_mag)
+    L1 = np.array([L1_mag*np.cos(x1), L1_mag*np.sin(x1)])
+    L2 = np.array([L2_mag*np.cos(x2), L2_mag*np.sin(x2)])
+    L3 = np.array([L3_mag*np.cos(x3), L3_mag*np.sin(x3)])
+
+    return usevegas_do_fold_no_series_integral(L1, L2, L3, config)
 
 def process_bin(bin_edges, config, num_processes=None, fold=False, series=True):
     """Process all bins with multiprocessing"""
@@ -186,22 +190,82 @@ def process_bin(bin_edges, config, num_processes=None, fold=False, series=True):
     return bin_mid, np.array(averaged_N2_bin)
 
 def main():
-    # Define binning scheme
-    bin_edges = np.array([20, 40, 60, 80, 100, 200])#, 300, 400, 500, 600, 700, 800, 900, 1000])
+    # Get number of CPUs and array task ID from SLURM
+    num_cpus = int(os.environ.get('SLURM_CPUS_PER_TASK', 1))
+    task_id = int(os.environ.get('SLURM_ARRAY_TASK_ID', 0))
+    
+    # Define all bin edges
+    all_bin_edges = np.array([
+        [20, 40],    # Task 0 will process this bin
+        [40, 60],    # Task 1 will process this bin
+        [60, 80],    # Task 2 will process this bin
+        [80, 100],   # Task 3 will process this bin
+        [100, 200]   # Task 4 will process this bin
+        [200, 300]   # Task 5 will process this bin
+        [300, 400]   # Task 6 will process this bin
+        [400, 500]   # Task 7 will process this bin
+        [500, 600]   # Task 8 will process this bin
+        [600, 700]   # Task 9 will process this bin
+        [700, 800]   # Task 10 will process this bin
+        [800, 900]   # Task 11 will process this bin
+        [900, 1000]  # Task 12 will process this bin
+    ])
+    
+    # Select bin edges for this task
+    bin_edges = all_bin_edges[task_id]
     
     # Time the execution
     start_time = time.time()
     
-    # Process all bins
-    bin_mid, averaged_N2_bin_equi = process_bin(bin_edges, config, num_processes=None, fold=False, series=False)
-    _, averaged_N2_bin_fold = process_bin(bin_edges, config, num_processes=None, fold=True, series=False)
+    # Series or no series?
+    is_it_series = False
     
-    # Save results
-    np.save('../outputs/no_series_binned_equilateral.npy', (bin_mid, averaged_N2_bin_equi))
-    np.save('../outputs/no_series_binned_folded.npy', (bin_mid, averaged_N2_bin_fold))
+    # Process bins for this task
+    bin_mid, averaged_N2_bin_equi = process_bin(bin_edges, config, 
+                                               num_processes=num_cpus, 
+                                               fold=False, 
+                                               series=is_it_series)
+    bin_mid, averaged_N2_bin_fold = process_bin(bin_edges, config, 
+                                               num_processes=num_cpus, 
+                                               fold=True, 
+                                               series=is_it_series)
+    
+    # Create filenames based on series flag and task ID
+    series_str = 'series' if is_it_series else 'no_series'
+    output_eq_filename = f'../outputs/{series_str}_binned_equilateral_task_{task_id}.npy'
+    output_fd_filename = f'../outputs/{series_str}_binned_folded_task_{task_id}.npy'
+    
+    # Save results for this task
+    np.save(output_eq_filename, (bin_mid, averaged_N2_bin_equi))
+    np.save(output_fd_filename, (bin_mid, averaged_N2_bin_fold))
     
     end_time = time.time()
-    print(f"Total execution time: {end_time - start_time:.2f} seconds")
+    print(f"Task {task_id} execution time: {end_time - start_time:.2f} seconds")
+
+# Add a function to combine results after all tasks complete
+def combine_results():
+    series_str = 'series' if is_it_series else 'no_series'
+    
+    # Initialize lists to store all results
+    all_bin_mids = []
+    all_N2_equi = []
+    all_N2_fold = []
+    
+    # Load results from each task
+    for task_id in range(12):  # Assuming 12 tasks
+        eq_data = np.load(f'../outputs/{series_str}_binned_equilateral_task_{task_id}.npy')
+        fd_data = np.load(f'../outputs/{series_str}_binned_folded_task_{task_id}.npy')
+        
+        all_bin_mids.extend(eq_data[0])
+        all_N2_equi.extend(eq_data[1])
+        all_N2_fold.extend(fd_data[1])
+    
+    # Save combined results
+    np.save(f'../outputs/{series_str}_binned_equilateral_combined.npy', 
+            (np.array(all_bin_mids), np.array(all_N2_equi)))
+    np.save(f'../outputs/{series_str}_binned_folded_combined.npy', 
+            (np.array(all_bin_mids), np.array(all_N2_fold)))
+
 
 if __name__ == '__main__':
     main()

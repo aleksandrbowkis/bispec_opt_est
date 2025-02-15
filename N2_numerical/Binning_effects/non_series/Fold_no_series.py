@@ -6,7 +6,6 @@
 import numpy as np
 np.set_printoptions(precision=15)
 from scipy.integrate import dblquad
-import vegas
 import multiprocessing as mp
 from functools import partial
 import os
@@ -23,7 +22,7 @@ config = CMBConfig()
 def bigF(l: np.ndarray, L: np.ndarray, config) -> np.ndarray:
     """
     Compute lensing response function F(l1,l2) = f(l1,l2)/(2 Ctot(l1) Ctot(l2))
-    with epsilon parameter to avoid division by zero.
+    for any pair of input multipole vectors.
     
     Parameters
     ----------
@@ -36,33 +35,27 @@ def bigF(l: np.ndarray, L: np.ndarray, config) -> np.ndarray:
     -------
     np.ndarray
         Response function 
-    
     """
-    l = np.asarray(l, dtype=np.float64)
-    L = np.asarray(L, dtype=np.float64)
-    
-    # Compute sizes 
-    l_size = np.sqrt(np.sum(l*l, axis=-1))
-    L_m_l = L - l
-    l_m_l_size = np.sqrt(np.sum(L_m_l*L_m_l, axis=-1))
-    
-    # Add small epsilon to avoid division by zero
-    eps = 1e-10
-    l_size = np.maximum(l_size, eps)
-    l_m_l_size = np.maximum(l_m_l_size, eps)
-    
-    # Get power spectra
+    # Small number to avoid division by zero
+    epsilon = 1e-34
+
+    # Convert inputs to double precision
+    l = np.array(l, dtype=np.float64)
+    L = np.array(L, dtype=np.float64)
+
+    # Read in power spectra
     Ctt = config.lcl_interp
+    # Vectorized computations
+    l_size = np.linalg.norm(l, axis=-1)
+    l_m_l_size = np.linalg.norm(L-l, axis=-1)
     
-    # Compute dot products explicitly. Ellipsis allows handling of vectors with any leading number of dimensions.
-    dot_L_l = L[...,0]*l[...,0] + L[...,1]*l[...,1]
-    dot_L_Lml = L[...,0]*L_m_l[...,0] + L[...,1]*L_m_l[...,1]
+    # Response function f(l, L-l))
+    f_lL = (np.sum(L * l, axis=-1) * Ctt(l_size) + 
+              np.sum(L * (L-l), axis=-1) * Ctt(l_m_l_size))
     
-    # Response function with regularization
-    f_lL = (dot_L_l * Ctt(l_size) + dot_L_Lml * Ctt(l_m_l_size))
-    denominator = 2 * Ctt(l_size) * Ctt(l_m_l_size)
-    denominator = np.maximum(denominator, eps)
-    
+    denominator = np.maximum((2 * Ctt(l_size) * Ctt(l_m_l_size)), epsilon)
+
+    # Final result F(l,L)
     return f_lL / denominator
 
 def fold_no_series_integrand(l, L1, L2, L3, config):
@@ -78,52 +71,40 @@ def fold_no_series_integrand(l, L1, L2, L3, config):
     Returns:
         float: Approximate integrand for N2 for folded configuration for reconstructed lensing bispectrum for KAPPA!
     """
-    # Ensure all inputs are float64
-    l = np.asarray(l, dtype=np.float64)
-    L1 = np.asarray(L1, dtype=np.float64)
-    L2 = np.asarray(L2, dtype=np.float64)
-    L3 = np.asarray(L3, dtype=np.float64)
-    
+
+    # Convert all inputs to double precision
+    l = np.array(l, dtype=np.float64)
+    L1 = np.array(L1, dtype=np.float64)
+    L2 = np.array(L2, dtype=np.float64)
+    L3 = np.array(L3, dtype=np.float64)
+
     # Get interpolated values
     Ctot = config.ctot_interp
     Ctt = config.lcl_interp
     Cpp = config.cl_phi_interp
+    Ctot_prime = config.ctotprime_interp
+    Ctt_prime = config.lclprime_interp
+    Ctt_doubleprime = config.lcldoubleprime_interp
     norm_phi = config.norm_factor_phi
-    
-    # Compute sizes with improved stability
-    eps = 1e-10
-    l_size = np.sqrt(np.sum(l*l))
-    L1_size = np.sqrt(np.sum(L1*L1))
-    L2_size = np.sqrt(np.sum(L2*L2))
-    L3_size = np.sqrt(np.sum(L3*L3))
-    
-    # Apply size thresholds
-    l_size = np.maximum(l_size, eps)
-    L1_size = np.maximum(L1_size, eps)
-    L2_size = np.maximum(L2_size, eps)
-    L3_size = np.maximum(L3_size, eps)
-    
-    # Compute l + L3 more carefully
-    l_p_L3 = l + L3
-    l_p_L3_size = np.sqrt(np.sum(l_p_L3*l_p_L3))
-    l_p_L3_size = np.maximum(l_p_L3_size, eps)
-    
-    # Compute dot products 
-    dot_L2_l = L2[0]*l[0] + L2[1]*l[1]
-    dot_L3_l = L3[0]*l[0] + L3[1]*l[1]
-    dot_L2_lpL3 = L2[0]*l_p_L3[0] + L2[1]*l_p_L3[1]
-    dot_L3_lpL3 = L3[0]*l_p_L3[0] + L3[1]*l_p_L3[1]
-    
-    # Precompute common factors
+
+    # Get size L1, L2, L3, l + L3
+    l_size = np.linalg.norm(l)
+    L1_size = np.linalg.norm(L1)
+    L2_size = np.linalg.norm(L2)
+    L3_size = np.linalg.norm(L3)
+    l_p_L3_size = np.linalg.norm(l + L3)
+
+    # Precompute the lensing response function
     F_l_L1 = bigF(l, L1, config)
+    
+
+    # Factor to convert phi to kappa
     kappa_factor = L1_size*(L1_size+1) * L2_size*(L2_size+1) * L3_size*(L3_size+1) / 8
-    common_factor = norm_phi(L1_size) * F_l_L1 * Cpp(L2_size) * Cpp(L3_size) / (2*np.pi)**2
-    
-    # Compute terms with improved stability
-    typeA = -2 * common_factor * Ctt(l_size) * dot_L2_l * dot_L3_l
-    typeB = 2 * common_factor * Ctt(l_p_L3_size) * dot_L2_lpL3 * dot_L3_lpL3
-    
-    return kappa_factor * (typeA + typeB)
+
+    typeA = -2*norm_phi(L1_size)*F_l_L1*Cpp(L2_size)*Cpp(L3_size)*Ctt(l_size)*np.dot(L2, l)*np.dot(L3,l) * (1/(2*np.pi)**2)
+    typeB = 2*norm_phi(L1_size)*F_l_L1*Cpp(L2_size)*Cpp(L3_size)*Ctt(l_p_L3_size)*np.dot(L2, l+L3)*np.dot(L3, l+L3) * (1/(2*np.pi)**2)
+
+    return kappa_factor*(typeA + typeB) 
 
 def do_fold_no_series_integral(L1, L2, L3, config, ellmin=2, ellmax=3000):
     """
@@ -159,7 +140,6 @@ def do_fold_no_series_integral(L1, L2, L3, config, ellmin=2, ellmax=3000):
     return result
 
 
-
 def usevegas_do_fold_no_series_integral(L1, L2, L3, config, ellmin=2, ellmax=3000):
     """
     Computes the 2D integral over l for the folded N2 bias approximation using Vegas integration.
@@ -172,63 +152,66 @@ def usevegas_do_fold_no_series_integral(L1, L2, L3, config, ellmin=2, ellmax=300
     
     Returns:
         float: Integral including all permutations
-    """    
-     @vegas.batchintegrand
+    """
+    import vegas
+    
+    @vegas.batchintegrand
     def integrand_2d(x):
-        # Transform coordinates with importance sampling
+        """
+        Vegas integrand function that handles the coordinate transformation and computation.
+        x is an array of points in [0,1]^2 that Vegas samples.
+        """
+        # Transform coordinates
         # Use log spacing for l_mag to better sample important regions
-        log_l_mag = np.log(ellmin) + x[:, 0] * (np.log(ellmax) - np.log(ellmin))
-        l_mag = np.exp(log_l_mag)
+        # log_l_mag = np.log(ellmin) + x[:, 0] * (np.log(ellmax) - np.log(ellmin))
+        # l_mag = np.exp(log_l_mag)
+        # theta = x[:, 1] * 2*np.pi
+
+        # Transform from [0,1]^2 to actual integration domain
+        l_mag = x[:, 0] * (ellmax - ellmin) + ellmin
         theta = x[:, 1] * 2*np.pi
         
-        # Compute l vectors
+        # Compute l vectors for each point
         l_x = l_mag * np.cos(theta)
         l_y = l_mag * np.sin(theta)
         l = np.column_stack([l_x, l_y])
         
-        # Calculate results with vectorization where possible
+        # Calculate result for each point
         result = np.zeros(len(x))
         for i in range(len(x)):
+            # Compute integral for each permutation
             perm1 = fold_no_series_integrand(l[i], L1, L2, L3, config)
             perm2 = fold_no_series_integrand(l[i], L2, L1, L3, config)
             perm3 = fold_no_series_integrand(l[i], L3, L2, L1, config)
-            # Include l_mag for polar coordinates and Jacobian for log transform int f dl = int f l d(logl)
-            result[i] = (perm1 + perm2 + perm3) * l_mag[i] * l_mag[i]
+            
+            # Include the Jacobian factor from coordinate transformation
+            # l_mag comes from the polar coordinate transformation
+            result[i] = (perm1 + perm2 + perm3) * l_mag[i] #* l_mag[i] Add back if log spacing used
         
         # Include remaining Jacobian factors
-        return result * (np.log(ellmax) - np.log(ellmin)) * 2*np.pi
-
-    # Initialize Vegas integrator with improved settings
+        #return result * (np.log(ellmax) - np.log(ellmin)) * 2*np.pi log spacing result
+        return result * (ellmax - ellmin) * 2*np.pi
+    
+    # Create Vegas integrator
     integ = vegas.Integrator([[0, 1], [0, 1]])
     
-    # More careful warm-up phase
-    warmup = integ(integrand_2d, nitn=15, neval=20000)
+    # Do a warm-up integration to adapt the grid
+    warmup = integ(integrand_2d, nitn=2, neval=1500)
     
-    # Final integration with increased iterations and evaluations
-    result = integ(integrand_2d, nitn=100, neval=100000)
+    # Perform the final integration
+    result = integ(integrand_2d, nitn=5, neval=10000)
     
-    if result.sdev / abs(result.mean) > 0.1:  # More than 10% relative error
-        # Try again with more points
-        result = integ(integrand_2d, nitn=150, neval=150000)
+    print(f'result = {result.mean:.3f} ± {result.sdev:.3f}')
     
-    return float(result.mean) # convert to float for multiprocessing
+    return float(result.mean)  # Explicitly convert to float for multiprocessing
 
 def compute_single_L(lensingL, config):
-    """Compute integral for a single lensingL value with error checking"""
-    L1 = np.array([lensingL, 0], dtype=np.float64)
-    L2 = np.array([-lensingL/2, 0], dtype=np.float64)
-    L3 = np.array([-lensingL/2, 0], dtype=np.float64)
+    """Compute integral for a single lensingL value. Needed for multiprocessing. Defines L1,2,3 in folded instance."""
+    L1 = np.array([lensingL, 0])
+    L2 = np.array([-lensingL/2, 0])
+    L3 = np.array([-lensingL/2, 0])
     
-    try:
-        result = usevegas_do_fold_no_series_integral(L1, L2, L3, config)
-        if not np.isfinite(result):
-            print(f"Warning: Non-finite result for L={lensingL}")
-            result = 0.0
-    except Exception as e:
-        print(f"Error computing L={lensingL}: {str(e)}")
-        result = 0.0
-        
-    return lensingL, result
+    return lensingL, usevegas_do_fold_no_series_integral(L1, L2, L3, config)
 
 ### Main function ###
 
@@ -252,4 +235,4 @@ if __name__ == '__main__':
     integrals = np.array(integrals)
     
     # Save result
-    np.savetxt('../outputs/logspace_vegas_fold_N2_no_series.txt', (lensingL_out, integrals))
+    np.savetxt('../outputs/vegas_fold_N2_no_series.txt', (lensingL_out, integrals))
