@@ -1,4 +1,0 @@
-  File "Calc_binning.py", line 137
-    start_time = time.time()
-             ^
-SyntaxError: invalid syntax

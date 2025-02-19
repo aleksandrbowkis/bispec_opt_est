@@ -1,6 +1,7 @@
-This is job 1
 Loading rhel7/default-peta4
   Loading requirement: slurm turbovnc/2.0.1 vgl/3.1/64 singularity/current
     rhel7/global intel/compilers/2017.4 intel/mkl/2017.4 intel/impi/2017.4/intel
     intel/libs/idb/2017.4 intel/libs/tbb/2017.4 intel/libs/ipp/2017.4
     intel/libs/daal/2017.4 intel/bundles/complib/2017.4 cmake/latest
+Processing folded bin 1/1: 20-40
+Completed No SERIES bin 1 with 660 triangles

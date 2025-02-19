@@ -1,0 +1,6 @@
+Traceback (most recent call last):
+  File "Calc_binning.py", line 243, in <module>
+    main()
+  File "Calc_binning.py", line 236, in main
+    np.save(output_eq_filename, (bin_mid, averaged_N2_bin_equi))
+NameError: name 'output_eq_filename' is not defined

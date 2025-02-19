@@ -1,0 +1,6 @@
+Traceback (most recent call last):
+  File "Calc_binning.py", line 243, in <module>
+    main()
+  File "Calc_binning.py", line 232, in main
+    output_eq_filename = f'../outputs/{series_str}_binned_equilateral_task_{task_id}.npy'
+NameError: name 'task_id' is not defined

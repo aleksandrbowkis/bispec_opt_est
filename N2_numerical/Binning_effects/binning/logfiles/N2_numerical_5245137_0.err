@@ -1,0 +1,6 @@
+Traceback (most recent call last):
+  File "Calc_binning.py", line 243, in <module>
+    main()
+  File "Calc_binning.py", line 240, in main
+    print(f"Task {task_id} execution time: {end_time - start_time:.2f} seconds")
+NameError: name 'task_id' is not defined

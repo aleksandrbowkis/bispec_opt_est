@@ -10,6 +10,7 @@ import multiprocessing as mp
 from functools import partial
 import os
 import sys
+import time
 sys.path.append('/home/amb257/software/cmplx_cmblensplus/wrap')
 sys.path.append('/home/amb257/software/cmplx_cmblensplus/utils')
 sys.path.append('/home/amb257/kappa_bispec/bispec_opt_est/Configuration/')
@@ -37,7 +38,7 @@ def bigF(l: np.ndarray, L: np.ndarray, config) -> np.ndarray:
         Response function 
     """
     # Small number to avoid division by zero
-    epsilon = 1e-34
+    epsilon = 0#1e-34
 
     # Convert inputs to double precision
     l = np.array(l, dtype=np.float64)
@@ -52,17 +53,22 @@ def bigF(l: np.ndarray, L: np.ndarray, config) -> np.ndarray:
     # Response function f(l, L-l))
     f_lL = (np.sum(L * l, axis=-1) * Ctt(l_size) + 
               np.sum(L * (L-l), axis=-1) * Ctt(l_m_l_size))
+
+    #print((2 * Ctt(l_size) * Ctt(l_m_l_size)))
     
-    denominator = np.maximum((2 * Ctt(l_size) * Ctt(l_m_l_size)), epsilon)
+    #denominator = np.maximum((2 * Ctt(l_size) * Ctt(l_m_l_size)), epsilon)
+
+    denominator = 2 * Ctt(l_size) * Ctt(l_m_l_size)
 
     # Final result F(l,L)
     return f_lL / denominator
 
-def fold_no_series_integrand(l, L1, L2, L3, config):
+def fold_no_series_integrand(l, L1, L2, L3, config, ellmin=2, ellmax=3000):
     """
     Calculate the integrand in approximate form of (but not series expansion) N2 bias to the reconstructed lensing bispectrum for FOLDED CONFIGURATION
     This is the sum of the type A and type B terms
     Note this returns only one permutation the remaining two can be found by: L1<->L2 and L1<->L3
+    Returns zero if outside of the region lmin < |L1-l| < lmax
     
     Args:
         l, L1, L2, L3: Multipole vectors
@@ -79,12 +85,8 @@ def fold_no_series_integrand(l, L1, L2, L3, config):
     L3 = np.array(L3, dtype=np.float64)
 
     # Get interpolated values
-    Ctot = config.ctot_interp
     Ctt = config.lcl_interp
     Cpp = config.cl_phi_interp
-    Ctot_prime = config.ctotprime_interp
-    Ctt_prime = config.lclprime_interp
-    Ctt_doubleprime = config.lcldoubleprime_interp
     norm_phi = config.norm_factor_phi
 
     # Get size L1, L2, L3, l + L3
@@ -96,7 +98,6 @@ def fold_no_series_integrand(l, L1, L2, L3, config):
 
     # Precompute the lensing response function
     F_l_L1 = bigF(l, L1, config)
-    
 
     # Factor to convert phi to kappa
     kappa_factor = L1_size*(L1_size+1) * L2_size*(L2_size+1) * L3_size*(L3_size+1) / 8
@@ -104,7 +105,12 @@ def fold_no_series_integrand(l, L1, L2, L3, config):
     typeA = -2*norm_phi(L1_size)*F_l_L1*Cpp(L2_size)*Cpp(L3_size)*Ctt(l_size)*np.dot(L2, l)*np.dot(L3,l) * (1/(2*np.pi)**2)
     typeB = 2*norm_phi(L1_size)*F_l_L1*Cpp(L2_size)*Cpp(L3_size)*Ctt(l_p_L3_size)*np.dot(L2, l+L3)*np.dot(L3, l+L3) * (1/(2*np.pi)**2)
 
-    return kappa_factor*(typeA + typeB) 
+    # Masking region where L1-l is outside of the region lmin < |L1-l| < lmax
+    l_m_L1_size = np.linalg.norm(L1-l)
+    if l_m_L1_size < ellmax and l_m_L1_size > ellmin:
+        return kappa_factor*(typeA + typeB) 
+    else:
+        return 0
 
 def do_fold_no_series_integral(L1, L2, L3, config, ellmin=2, ellmax=3000):
     """
@@ -128,9 +134,9 @@ def do_fold_no_series_integral(L1, L2, L3, config, ellmin=2, ellmax=3000):
         l = np.array([l_mag * np.cos(theta), l_mag * np.sin(theta)])
         
         # Compute integral for each permutation
-        perm1 = fold_no_series_integrand(l, L1, L2, L3, config)
-        perm2 = fold_no_series_integrand(l, L2, L1, L3, config)
-        perm3 = fold_no_series_integrand(l, L3, L2, L1, config)
+        perm1 = fold_no_series_integrand(l, L1, L2, L3, config, ellmin, ellmax)
+        perm2 = fold_no_series_integrand(l, L2, L1, L3, config, ellmin, ellmax)
+        perm3 = fold_no_series_integrand(l, L3, L2, L1, config, ellmin, ellmax)
         
         # Include the measure l_mag from using polar coordinates
         return (perm1 + perm2 + perm3) * l_mag
@@ -167,7 +173,7 @@ def usevegas_do_fold_no_series_integral(L1, L2, L3, config, ellmin=2, ellmax=300
         # l_mag = np.exp(log_l_mag)
         # theta = x[:, 1] * 2*np.pi
 
-        # Transform from [0,1]^2 to actual integration domain
+        # # Transform from [0,1]^2 to actual integration domain
         l_mag = x[:, 0] * (ellmax - ellmin) + ellmin
         theta = x[:, 1] * 2*np.pi
         
@@ -186,22 +192,20 @@ def usevegas_do_fold_no_series_integral(L1, L2, L3, config, ellmin=2, ellmax=300
             
             # Include the Jacobian factor from coordinate transformation
             # l_mag comes from the polar coordinate transformation
-            result[i] = (perm1 + perm2 + perm3) * l_mag[i] #* l_mag[i] Add back if log spacing used
+            result[i] = (perm1 + perm2 + perm3) * l_mag[i] #* l_mag[i] #Add back last factorif log spacing used
         
         # Include remaining Jacobian factors
-        #return result * (np.log(ellmax) - np.log(ellmin)) * 2*np.pi log spacing result
+        #return result * (np.log(ellmax) - np.log(ellmin)) * 2*np.pi #log spacing result
         return result * (ellmax - ellmin) * 2*np.pi
     
     # Create Vegas integrator
     integ = vegas.Integrator([[0, 1], [0, 1]])
     
     # Do a warm-up integration to adapt the grid
-    warmup = integ(integrand_2d, nitn=2, neval=1500)
+    warmup = integ(integrand_2d, nitn=1, neval=500)
     
     # Perform the final integration
-    result = integ(integrand_2d, nitn=5, neval=10000)
-    
-    print(f'result = {result.mean:.3f} ± {result.sdev:.3f}')
+    result = integ(integrand_2d, nitn=4, neval=6000)
     
     return float(result.mean)  # Explicitly convert to float for multiprocessing
 
@@ -213,9 +217,21 @@ def compute_single_L(lensingL, config):
     
     return lensingL, usevegas_do_fold_no_series_integral(L1, L2, L3, config)
 
+def compute_single_L_equi(lensingL, config):
+    """Compute integral for a single lensingL value. Needed for multiprocessing. Defines L1,2,3 in equilateral instance."""
+    L1 = np.array([12, 0])
+    L2 = np.array([-lensingL*np.cos(np.pi/3), lensingL*np.sin(np.pi/3)])
+    L3 = np.array([-lensingL*np.cos(np.pi/3), -lensingL*np.sin(np.pi/3)])
+    
+    return lensingL, usevegas_do_fold_no_series_integral(L1, L2, L3, config)
+
 ### Main function ###
 
 if __name__ == '__main__':
+
+    # Time the execution
+    start_time = time.time()
+
     # Define L values
     lensingLarray = np.arange(2, 500, 10,  dtype=np.float64)
     
@@ -233,6 +249,9 @@ if __name__ == '__main__':
     # Convert to numpy arrays
     lensingL_out = np.array(lensingL_out)
     integrals = np.array(integrals)
+
+    end_time = time.time()
+    print(f"execution time: {end_time - start_time:.2f} seconds")
     
     # Save result
-    np.savetxt('../outputs/vegas_fold_N2_no_series.txt', (lensingL_out, integrals))
+    np.savetxt('../outputs/lowres_vegas_fold_N2_no_series.txt', (lensingL_out, integrals))
