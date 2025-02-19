@@ -4,22 +4,24 @@
 #SBATCH --output=logfiles/N2_numerical_%A_%a.out
 #SBATCH --error=logfiles/N2_numerical_%A_%a.err
 #SBATCH --nodes=1
-#SBATCH --ntasks=1
-#SBATCH --cpus-per-task=72  # Increased from 1
-#SBATCH --time=12:00:00
-#SBATCH --mem=128000mb      # Increased for multiple cores
-#SBATCH --array=0        # If you want to parallelize across different configurations
+#SBATCH --ntasks=4
+#SBATCH --cpus-per-task=18
+#SBATCH --time=12:00:00  # Reduced since each job does less work
+#SBATCH --mem-per-cpu=2G
+#SBATCH --array=0
 #SBATCH -p icelake
-#SBATCH --hint=nomultithread  # Disable hyperthreading for better performance
+#SBATCH --hint=nomultithread
 
 # Load modules
 module purge
-module load rhel7/default-peta4 
+module load rhel7/default-peta4
 source ~/.bashrc
 conda activate cmplx_fld_lensplus
 
-# Set OpenMP threads to match SLURM allocation
+# Set OpenMP and MKL threading
 export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
+export MKL_NUM_THREADS=$SLURM_CPUS_PER_TASK
+export NUMEXPR_NUM_THREADS=$SLURM_CPUS_PER_TASK
 
 # Run the script
 python Calc_binning.py
