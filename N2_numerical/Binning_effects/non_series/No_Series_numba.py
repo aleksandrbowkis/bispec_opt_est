@@ -1,9 +1,13 @@
 """
     Computes the non series expansion but approximate N2 bias to the reconstructed lensing bispectrum in the FOLDED CONFIGURATION.
     Used to check validity of series expansion.
+    Currently rewriting to use numba. Note numba cannot use config class and cannot handle interpolated functions. 
+    TO DO: Write function to do linear interpolation of power spectra and normalisation factors.
+
 """
-from numba import jit
+from numba import njit
 import numpy as np
+import vegas
 np.set_printoptions(precision=15)
 from scipy.integrate import dblquad
 import multiprocessing as mp
@@ -17,10 +21,62 @@ sys.path.append('/home/amb257/kappa_bispec/bispec_opt_est/Configuration/')
 import curvedsky as cs # from cmblensplus/wrap/
 from config import CMBConfig # Import CMBConfig class from config.py
 
-# Import config class
+# Import config class. Must load all the interpolated stuff here as numba doens't work with config class
 config = CMBConfig()
 
-def bigF(l: np.ndarray, L: np.ndarray, config) -> np.ndarray:
+# Define interpolation functions for power spectra and normalisation factors
+def make_numba_functions(config, ellmax=3000):
+    """Create Numba-compatible interpolation functions"""
+    # Pre-compute values for interpolation
+    ell_values = np.arange(1, ellmax+1)
+    Ctt_values = np.array([config.lcl_interp(ell) for ell in ell_values])
+    Cpp_values = np.array([config.cl_phi_interp(ell) for ell in ell_values])
+    norm_phi_values = np.array([config.norm_factor_phi(ell) for ell in ell_values])
+    
+    @njit
+    def Ctt_func(ell):
+        if ell < 1 or ell > ellmax:
+            return 0.0
+        # Simple linear interpolation
+        idx_float = ell - 1
+        idx_low = int(np.floor(idx_float))
+        idx_high = min(int(np.ceil(idx_float)), ellmax-1)
+        if idx_low == idx_high:
+            return Ctt_values[idx_low]
+        weight = idx_float - idx_low
+        return Ctt_values[idx_low] * (1-weight) + Ctt_values[idx_high] * weight
+    
+    @njit
+    def Cpp_func(ell):
+        if ell < 1 or ell > ellmax:
+            return 0.0
+        # Simple linear interpolation
+        idx_float = ell - 1
+        idx_low = int(np.floor(idx_float))
+        idx_high = min(int(np.ceil(idx_float)), ellmax-1)
+        if idx_low == idx_high:
+            return Cpp_values[idx_low]
+        weight = idx_float - idx_low
+        return Cpp_values[idx_low] * (1-weight) + Cpp_values[idx_high] * weight
+    
+    @njit
+    def norm_phi_func(ell):
+        if ell < 1 or ell > ellmax:
+            return 0.0
+        # Simple linear interpolation
+        idx_float = ell - 1
+        idx_low = int(np.floor(idx_float))
+        idx_high = min(int(np.ceil(idx_float)), ellmax-1)
+        if idx_low == idx_high:
+            return norm_phi_values[idx_low]
+        weight = idx_float - idx_low
+        return norm_phi_values[idx_low] * (1-weight) + norm_phi_values[idx_high] * weight
+    
+    return Ctt_func, Cpp_func, norm_phi_func
+
+
+@njit
+def bigF(l: np.ndarray, L: np.ndarray, Ctt_func) -> np.ndarray:
     """
     Compute lensing response function F(l1,l2) = f(l1,l2)/(2 Ctot(l1) Ctot(l2))
     for any pair of input multipole vectors.
@@ -37,33 +93,26 @@ def bigF(l: np.ndarray, L: np.ndarray, config) -> np.ndarray:
     np.ndarray
         Response function 
     """
-    # Small number to avoid division by zero
-    epsilon = 0#1e-34
 
     # Convert inputs to double precision
     l = np.array(l, dtype=np.float64)
     L = np.array(L, dtype=np.float64)
 
-    # Read in power spectra
-    Ctt = config.lcl_interp
-    # Vectorized computations
-    l_size = np.linalg.norm(l, axis=-1)
-    l_m_l_size = np.linalg.norm(L-l, axis=-1)
+    l_size = np.sqrt(l[0]**2 + l[1]**2)
+    L_minus_l = L - l
+    l_m_l_size = np.sqrt(L_minus_l[0]**2 + L_minus_l[1]**2)
+    L_dot_l = L[0]*l[0] + L[1]*l[1]
+    L_dot_Lml = L[0]*L_minus_l[0] + L[1]*L_minus_l[1]
+    f_lL = L_dot_l * Ctt_func(l_size) + L_dot_Lml * Ctt_func(l_m_l_size)
     
-    # Response function f(l, L-l))
-    f_lL = (np.sum(L * l, axis=-1) * Ctt(l_size) + 
-              np.sum(L * (L-l), axis=-1) * Ctt(l_m_l_size))
 
-    #print((2 * Ctt(l_size) * Ctt(l_m_l_size)))
-    
-    #denominator = np.maximum((2 * Ctt(l_size) * Ctt(l_m_l_size)), epsilon)
-
-    denominator = 2 * Ctt(l_size) * Ctt(l_m_l_size)
+    denominator = 2 * Ctt_func(l_size) * Ctt_func(l_m_l_size)
 
     # Final result F(l,L)
     return f_lL / denominator
 
-def fold_no_series_integrand(l, L1, L2, L3, config, ellmin=2, ellmax=3000):
+@njit
+def fold_no_series_integrand(l, L1, L2, L3, Ctt_func, Cpp_func, norm_phi_func, ellmin=2, ellmax=3000):
     """
     Calculate the integrand in approximate form of (but not series expansion) N2 bias to the reconstructed lensing bispectrum for FOLDED CONFIGURATION
     This is the sum of the type A and type B terms
@@ -83,67 +132,36 @@ def fold_no_series_integrand(l, L1, L2, L3, config, ellmin=2, ellmax=3000):
     L1 = np.array(L1, dtype=np.float64)
     L2 = np.array(L2, dtype=np.float64)
     L3 = np.array(L3, dtype=np.float64)
-
-    # Get interpolated values
-    Ctt = config.lcl_interp
-    Cpp = config.cl_phi_interp
-    norm_phi = config.norm_factor_phi
+    
+    l_m_L1_size = np.linalg.norm(L1-l)
+    if l_m_L1_size < ellmin or l_m_L1_size > ellmax:
+        return 0.0
 
     # Get size L1, L2, L3, l + L3
-    l_size = np.linalg.norm(l)
-    L1_size = np.linalg.norm(L1)
-    L2_size = np.linalg.norm(L2)
-    L3_size = np.linalg.norm(L3)
-    l_p_L3_size = np.linalg.norm(l + L3)
+    l_size = np.sqrt(l[0]**2 + l[1]**2)
+    L1_size = np.sqrt(L1[0]**2 + L1[1]**2)
+    L2_size = np.sqrt(L2[0]**2 + L2[1]**2)
+    L3_size = np.sqrt(L3[0]**2 + L3[1]**2)
+    
+    l_plus_L3 = l + L3
+    l_p_L3_size = np.sqrt(l_plus_L3[0]**2 + l_plus_L3[1]**2)
 
     # Precompute the lensing response function
-    F_l_L1 = bigF(l, L1, config)
+    F_l_L1 = bigF(l, L1, Ctt_func)
+
+    # Dot products
+    L2_dot_l = L2[0]*l[0] + L2[1]*l[1]
+    L3_dot_l = L3[0]*l[0] + L3[1]*l[1]
+    L2_dot_lpL3 = L2[0]*l_plus_L3[0] + L2[1]*l_plus_L3[1]
+    L3_dot_lpL3 = L3[0]*l_plus_L3[0] + L3[1]*l_plus_L3[1]
 
     # Factor to convert phi to kappa
     kappa_factor = L1_size*(L1_size+1) * L2_size*(L2_size+1) * L3_size*(L3_size+1) / 8
 
-    typeA = -2*norm_phi(L1_size)*F_l_L1*Cpp(L2_size)*Cpp(L3_size)*Ctt(l_size)*np.dot(L2, l)*np.dot(L3,l) * (1/(2*np.pi)**2)
-    typeB = 2*norm_phi(L1_size)*F_l_L1*Cpp(L2_size)*Cpp(L3_size)*Ctt(l_p_L3_size)*np.dot(L2, l+L3)*np.dot(L3, l+L3) * (1/(2*np.pi)**2)
+    typeA = -2.0*norm_phi_func(L1_size)*F_l_L1*Cpp_func(L2_size)*Cpp_func(L3_size)*Ctt_func(l_size)*L2_dot_l*L3_dot_l * (1/(2*np.pi)**2)
+    typeB = 2.0*norm_phi_func(L1_size)*F_l_L1*Cpp_func(L2_size)*Cpp_func(L3_size)*Ctt_func(l_p_L3_size)*L2_dot_lpL3*L3_dot_lpL3 * (1/(2*np.pi)**2)
 
-    # Masking region where L1-l is outside of the region lmin < |L1-l| < lmax
-    l_m_L1_size = np.linalg.norm(L1-l)
-    if l_m_L1_size < ellmax and l_m_L1_size > ellmin:
-        return kappa_factor*(typeA + typeB) 
-    else:
-        return 0
-
-def do_fold_no_series_integral(L1, L2, L3, config, ellmin=2, ellmax=3000):
-    """
-    Computes the 2D integral over l for the folded N2 bias approximation.
-    Integrates over magnitude |l| and angle θ, with the measure d²l/(2π)². Note the 1/(2π)² included in def of integrand.
-    
-    Args:
-        L1, L2, L3: Multipole vectors (2D arrays)
-        config: Configuration object with power spectra, QE normalisatoin
-        ellmin, ellmax: Integration bounds for |l|
-    
-    Returns:
-        float: Integral including all permutations
-    """
-    def integrand_2d(l_mag, theta):
-        # Convert scalar inputs to double precision
-        l_mag = np.float64(l_mag)
-        theta = np.float64(theta)
-
-        # Construct l from magnitude and angle
-        l = np.array([l_mag * np.cos(theta), l_mag * np.sin(theta)])
-        
-        # Compute integral for each permutation
-        perm1 = fold_no_series_integrand(l, L1, L2, L3, config, ellmin, ellmax)
-        perm2 = fold_no_series_integrand(l, L2, L1, L3, config, ellmin, ellmax)
-        perm3 = fold_no_series_integrand(l, L3, L2, L1, config, ellmin, ellmax)
-        
-        # Include the measure l_mag from using polar coordinates
-        return (perm1 + perm2 + perm3) * l_mag
-    
-    result, error = dblquad(lambda theta, l_mag: integrand_2d(l_mag, theta), ellmin, ellmax, lambda x: 0, lambda x: 2*np.pi)
-    
-    return result
+    return kappa_factor*(typeA + typeB) 
 
 
 def usevegas_do_fold_no_series_integral(L1, L2, L3, config, ellmin=2, ellmax=3000):
@@ -159,7 +177,8 @@ def usevegas_do_fold_no_series_integral(L1, L2, L3, config, ellmin=2, ellmax=300
     Returns:
         float: Integral including all permutations
     """
-    import vegas
+    # Get Numba-compatible interpolation functions
+    Ctt_func, Cpp_func, norm_phi_func = make_numba_functions(config, ellmax)
     
     @vegas.batchintegrand
     def integrand_2d(x):
@@ -186,9 +205,9 @@ def usevegas_do_fold_no_series_integral(L1, L2, L3, config, ellmin=2, ellmax=300
         result = np.zeros(len(x))
         for i in range(len(x)):
             # Compute integral for each permutation
-            perm1 = fold_no_series_integrand(l[i], L1, L2, L3, config)
-            perm2 = fold_no_series_integrand(l[i], L2, L1, L3, config)
-            perm3 = fold_no_series_integrand(l[i], L3, L2, L1, config)
+            perm1 = fold_no_series_integrand(l[i], L1, L2, L3, Ctt_func, Cpp_func, norm_phi_func, ellmin, ellmax)
+            perm2 = fold_no_series_integrand(l[i], L2, L1, L3, Ctt_func, Cpp_func, norm_phi_func, ellmin, ellmax)
+            perm3 = fold_no_series_integrand(l[i], L3, L2, L1, Ctt_func, Cpp_func, norm_phi_func, ellmin, ellmax)
             
             # Include the Jacobian factor from coordinate transformation
             # l_mag comes from the polar coordinate transformation
@@ -236,7 +255,7 @@ if __name__ == '__main__':
     lensingLarray = np.arange(2, 500, 10,  dtype=np.float64)
     
     # Create partial function where the config arg is fixed as pool can only take functions of one variable
-    compute_func = partial(compute_single_L_equi, config=config)
+    compute_func = partial(compute_single_L, config=config)
 
     # Instead of mp.cpu_count() - 1, use the SLURM allocated cores:
     num_processes = int(os.environ.get('SLURM_CPUS_PER_TASK', mp.cpu_count() - 1))
@@ -254,4 +273,4 @@ if __name__ == '__main__':
     print(f"execution time: {end_time - start_time:.2f} seconds")
     
     # Save result
-    np.savetxt('../outputs/lowres_vegas_equi_N2_no_series.txt', (lensingL_out, integrals))
+    np.savetxt('../outputs/numba_vegas_fold_N2_no_series.txt', (lensingL_out, integrals))
