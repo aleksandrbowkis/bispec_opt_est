@@ -17,6 +17,28 @@ from config import CMBConfig # Import CMBConfig class from config.py
 # Import configuration class. can now do config.ctot_interp(l) etc.
 config = CMBConfig()
 
+#Function to compute the normalisation for binned bisepctrum estimator directly 
+def Nijk(bin_edges, size_bin_edges):
+    N = np.zeros(size_bin_edges-1)
+    sum = 0
+    for index, item in enumerate(bin_edges[0:size_bin_edges-1]):
+        sum = 0
+        lower_bound_bin = int(item)
+        upper_bound_bin = int(bin_edges[index+1])
+        for l3 in range(int(lower_bound_bin/changebins), int(upper_bound_bin/changebins)):
+            for l2 in range(int(lower_bound_bin/changebins), int(upper_bound_bin/changebins)):
+                #First calculate the l bounds of w3j function (allowed l1 values given l2,3)
+                lower_bound_w3j = np.abs(l3 - l2)
+                upper_bound_w3j = l3 + l2
+                #Calculate the w3j's
+                w3j = basic.wigner_funcs.wigner_3j(l3,l2,0,0)
+                for l1 in range(lower_bound_bin, upper_bound_bin):
+                    if l1 >= lower_bound_w3j and l1 <= upper_bound_w3j:
+                        position_l1_in_w3j = l1 - lower_bound_w3j #this is the position of the current value of l1 in the w3j array
+                        sum += (2*l1+1)*(2*l2+1)*(2*l3+1) * w3j[position_l1_in_w3j]**2 / (4*np.pi)
+        N[index] = sum
+    return N
+
 def find_triangles(bin_min, bin_max):
     """Vectorized triangle finding with pre-allocated arrays for better memory efficiency"""
     L = np.arange(bin_min, bin_max + 1)
@@ -212,7 +234,7 @@ def main():
     # ])
     
     # Select bin edges for this task
-    bin_edges = np.array([20,40])#np.array([20,40,60,80,100,200,300])
+    bin_edges = np.array([20,40,60,80,100,200])#np.array([20,40,60,80,100,200,300])
     
     # Time the execution
     start_time = time.time()
@@ -230,7 +252,7 @@ def main():
     # Create filenames based on series flag and task ID
     series_str = 'series' if is_it_series else 'no_series'
     #output_eq_filename = f'../outputs/{series_str}_binned_equilateral_task_{task_id}.npy'
-    output_fd_filename = f'../outputs/{series_str}_binned_folded_task_TESTONEBIN.npy'
+    output_fd_filename = f'../outputs/{series_str}_binned_folded_task_newfactor.npy'
     
     # Save results for this task
     #np.save(output_eq_filename, (bin_mid, averaged_N2_bin_equi))
