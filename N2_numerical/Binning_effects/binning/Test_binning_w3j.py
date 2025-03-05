@@ -1,4 +1,10 @@
+""" stuff testing out new binnning approach"""
+
 import numpy as np
+import sympy as sp
+from sympy.physics.quantum.cg import Wigner3j 
+# Calculate a Wigner 3j symbol
+# Format: Wigner3j(j1, j2, j3, m1, m2, m3)
 import sys, os
 from multiprocessing import Pool
 from functools import partial
@@ -21,6 +27,7 @@ config = CMBConfig()
 #Function to compute the normalisation for a single triplet for binned bisepctrum estimator directly 
 def N(L1, L2, L3):
     """Compute the normalisation factor for a single triplet L1, L2, L3 used in binned bispec estimator"""
+    numerical_result = float(Wigner3j(1, 1, 2, 0, 0, 0).doit())
     w3j = basic.wigner_funcs.wigner_3j(L3,L2,0,0)
     lower_bound_w3j = np.abs(L3 - L2)
     upper_bound_w3j = L3 + L2
@@ -30,6 +37,36 @@ def N(L1, L2, L3):
     
     return N
 
+def N_bin(bin_edges, is_it_folded):
+    """Compute the normalisation factor for all bins"""
+    size_bin_edges = len(bin_edges)
+
+    if is_it_folded == False:
+        changebins = 1
+    else:
+        changebins = 2
+    
+    N = np.zeros(size_bin_edges-1)
+    sum = 0
+    for index, item in enumerate(bin_edges[0:size_bin_edges-1]):
+        sum = 0
+        lower_bound_bin = int(item)
+        upper_bound_bin = int(bin_edges[index+1])
+        for l3 in range(int(lower_bound_bin/changebins), int(upper_bound_bin/changebins)):
+            for l2 in range(int(lower_bound_bin/changebins), int(upper_bound_bin/changebins)):
+                #First calculate the l bounds of w3j function (allowed l1 values given l2,3)
+                lower_bound_w3j = np.abs(l3 - l2)
+                upper_bound_w3j = l3 + l2
+                #Calculate the w3j's
+                w3j = basic.wigner_funcs.wigner_3j(l3,l2,0,0)
+                for l1 in range(lower_bound_bin, upper_bound_bin):
+                    if l1 >= lower_bound_w3j and l1 <= upper_bound_w3j and l1 <= l2 + l3 and l2<= l1+l3 and l3<= l1+l2:
+
+                        position_l1_in_w3j = l1 - lower_bound_w3j #this is the position of the current value of l1 in the w3j array
+                        sum += (2*l1+1)*(2*l2+1)*(2*l3+1) * w3j[position_l1_in_w3j]**2 / (4*np.pi)
+        N[index] = sum
+    return N
+
 def find_triangles(bin_min, bin_max):
     """Vectorized triangle finding with pre-allocated arrays for better memory efficiency"""
     L = np.arange(bin_min, bin_max + 1)
@@ -37,13 +74,13 @@ def find_triangles(bin_min, bin_max):
     L1 = L[:, None, None]
     L2 = L[None, :, None]
     L3 = L[None, None, :]
-    
-    mask = ((L1 + L2 > L3) & 
-            (L2 + L3 > L1) & 
-            (L3 + L1 > L2) & 
-            (L3 <= L2) & 
-            (L2 <= L1))
-    
+    #Note not necessry to calculate correct triangles as w3j factor in eq. 16 vanishes for disallowed triangles
+    # mask = ((L1 + L2 > L3) & 
+    #         (L2 + L3 > L1) & 
+    #         (L3 + L1 > L2) & 
+    #         (L3 <= L2) & 
+    #         (L2 <= L1))
+    mask = np.ones((len(L), len(L), len(L)), dtype=bool)
     # Find indices where mask is True
     valid_indices = np.where(mask)
     valid_triangles = np.column_stack([L[valid_indices[0]], 
@@ -60,12 +97,13 @@ def find_folded_triangles(bin_min, bin_max):
     L2 = L_half[None, :, None]
     L3 = L_half[None, None, :]
     #Note change mask so L3<L2<L1
-    mask = ((L1 + L2 > L3) & 
-            (L2 + L3 > L1) & 
-            (L3 + L1 > L2) & 
-            (L3 <= L2) & 
-            (L2 <= L1))
-    
+    # Note currently don't need to mask for allowed triangles. The w3j factor in eq. 16 vanishes for disallowed triangles. 
+    # mask = ((L1 + L2 > L3) & 
+    #         (L2 + L3 > L1) & 
+    #         (L3 + L1 > L2) & 
+    #         (L3 <= L2) & 
+    #         (L2 <= L1))
+    mask = np.ones((len(L), len(L_half), len(L_half)), dtype=bool)
     # Find indices where mask is True
     valid_indices = np.where(mask)
     valid_triangles = np.column_stack([L[valid_indices[0]], 
@@ -88,7 +126,10 @@ def process_triangle(triangle, config):
     """Process a single triangle - used by multiprocessing"""
     L1, L2, L3 = triangle
     x1, x2, x3 = find_angles(L1, L2, L3)
-    return do_N2_integral(L1, L2, L3, x1, x2, x3, config.cl_phi_interp, config.ctot_interp, config.lcl_interp, config.ctotprime_interp, config.lclprime_interp, config.lcldoubleprime_interp, config.norm_factor_phi)
+    N2_unnorm = do_N2_integral(L1, L2, L3, x1, x2, x3, config.cl_phi_interp, config.ctot_interp, config.lcl_interp, config.ctotprime_interp, config.lclprime_interp, config.lcldoubleprime_interp, config.norm_factor_phi)
+    N2_norm = N(L1, L2, L3)*N2_unnorm
+    #This includes factor for normalisation from eq 16 from "Biases to primordial non-Gaussianity measurements from CMB secondary anisotropies"
+    return N2_norm
 
 def process_triangle_noseries(triangle, config):
     """Process a single triangle using nonseries approximation - used by multiprocessing"""
@@ -97,14 +138,16 @@ def process_triangle_noseries(triangle, config):
     L1 = np.array([L1_mag*np.cos(x1), L1_mag*np.sin(x1)])
     L2 = np.array([L2_mag*np.cos(x2), L2_mag*np.sin(x2)])
     L3 = np.array([L3_mag*np.cos(x3), L3_mag*np.sin(x3)])
+    N2_noseries_unnorm = usevegas_do_fold_no_series_integral(L1, L2, L3, config)
+    N2__noseries_norm = N(L1, L2, L3)*N2_noseries_unnorm
+    return N2_noseries_norm
 
-    return usevegas_do_fold_no_series_integral(L1, L2, L3, config)
-
-def process_bin(bin_edges, config, normalising_factor, num_processes=None, fold=False, series=True):
-    """Process all bins with multiprocessing"""
+def process_bin(bin_edges, config, num_processes=None, fold=False, series=True):
+    """Process all bins with multiprocessing. Bins using eq 16 from "Biases to primordial non-Gaussianity measurements from CMB secondary anisotropies"""
     bin_mid = 0.5 * (bin_edges[1:] + bin_edges[:-1])
     averaged_N2_bin = []
-    
+    N_nofold = N_bin(bin_edges, False)
+    N_fold = N_bin(bin_edges, True)
     if fold == False:
         if series == True:
             # Create a pool of workers
@@ -125,7 +168,7 @@ def process_bin(bin_edges, config, normalising_factor, num_processes=None, fold=
                         sum_N2 = np.sum(N2_values)
                     else:
                         sum_N2 = 0
-                    bin_N2 = sum_N2 / normalising_factor[i]
+                    bin_N2 = sum_N2 / N_nofold[i]
                     averaged_N2_bin.append(bin_N2)
                     
                     # Print progress
@@ -149,7 +192,7 @@ def process_bin(bin_edges, config, normalising_factor, num_processes=None, fold=
                         sum_N2 = np.sum(N2_values)
                     else:
                         sum_N2 = 0
-                    bin_N2 = sum_N2 / normalising_factor[i]
+                    bin_N2 = sum_N2 / N_nofold[i]
                     averaged_N2_bin.append(bin_N2)
                     
                     # Print progress
@@ -174,7 +217,7 @@ def process_bin(bin_edges, config, normalising_factor, num_processes=None, fold=
                         sum_N2 = np.sum(N2_values)
                     else:
                         sum_N2 = 0
-                    bin_N2 = sum_N2 / normalising_factor[i]
+                    bin_N2 = sum_N2 / N_fold[i]
                     averaged_N2_bin.append(bin_N2)
                     
                     # Print progress
@@ -195,10 +238,10 @@ def process_bin(bin_edges, config, normalising_factor, num_processes=None, fold=
 
                     # Calculate average for this bin
                     if N2_values:
-                        bin_N2 = np.sum(N2_values)
+                        sum_N2 = np.sum(N2_values)
                     else:
-                        bin_N2 = 0
-                    bin_N2 = sum_N2 / normalising_factor[i]
+                        sum_N2 = 0
+                    bin_N2 = sum_N2 / N_fold[i]
                     averaged_N2_bin.append(bin_N2)
                     
                     # Print progress
@@ -208,11 +251,11 @@ def process_bin(bin_edges, config, normalising_factor, num_processes=None, fold=
 
 def main():
     # Get number of CPUs and array task ID from SLURM
-    #num_cpus = int(os.environ.get('SLURM_CPUS_PER_TASK', 1))
+    num_cpus = int(os.environ.get('SLURM_CPUS_PER_TASK', 1))
     #task_id = int(os.environ.get('SLURM_ARRAY_TASK_ID', 0))
 
     # Select bin edges for this task
-    bin_edges = np.array([20,40,60])#,80,100,200])#np.array([20,40,60,80,100,200,300])
+    bin_edges = np.array([20,40,60,80])#,100,200])#np.array([20,40,60,80,100,200,300])
     
     # Time the execution
     start_time = time.time()
@@ -220,19 +263,13 @@ def main():
     # Series or no series?
     is_it_series = True
     is_it_folded = True
-    normalising_factor=Nijk(bin_edges, len(bin_edges), fold=is_it_folded)
-    print(normalising_factor)
     # Process bins for this task
-    #bin_mid, averaged_N2_bin_equi = process_bin(bin_edges, config, num_processes=num_cpus, fold=False, series=is_it_series)
-    # bin_mid, averaged_N2_bin_fold = process_bin(bin_edges, config, normalising_factor,
-    #                                            num_processes=num_cpus, 
-    #                                            fold=is_it_folded, 
-    #                                            series=is_it_series)
+    bin_mid, averaged_N2_bin_fold = process_bin(bin_edges, config,num_processes=num_cpus, fold=is_it_folded, series=is_it_series)
     
     # Create filenames based on series flag and task ID
     series_str = 'series' if is_it_series else 'no_series'
     #output_eq_filename = f'../outputs/{series_str}_binned_equilateral_task_{task_id}.npy'
-    output_fd_filename = f'../outputs/w3j_{series_str}_binned_folded_task_newfactor.npy'
+    output_fd_filename = f'../outputs/w3j_{series_str}_binned_folded.npy'
     
     # Save results for this task
     #np.save(output_eq_filename, (bin_mid, averaged_N2_bin_equi))

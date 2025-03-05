@@ -24,4 +24,5 @@ export MKL_NUM_THREADS=$SLURM_CPUS_PER_TASK
 export NUMEXPR_NUM_THREADS=$SLURM_CPUS_PER_TASK
 
 # Run the script
-python Calc_binning.py
+#python Calc_binning.py
+python Test_binning_w3j.py
