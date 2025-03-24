@@ -115,7 +115,7 @@ def do_N2_integral(L1, L2, L3, x1, x2, x3, cl_phi_interp, ctot_interp, lcl_inter
 if __name__ == '__main__':
     #This runs if program called as script
     # Define L values to compute integral for
-    lensingLarray = np.arange(2, 1000, 10)
+    lensingLarray = np.arange(2, 1000, 3)
     # Output arrays
     output_fd = []
     output_eq = []
@@ -157,4 +157,4 @@ if __name__ == '__main__':
 
     # Save result
     np.savetxt('../outputs/foldN2_from_full_int.txt', (lensingLarray, output_fd))
-    np.savetxt('../outputs/equilN2_from_full_int.txt', (lensingLarray, output_eq))
+    #np.savetxt('../outputs/equilN2_from_full_int.txt', (lensingLarray, output_eq))
