@@ -9,21 +9,21 @@ from scipy.interpolate import interp1d
 
 ###### Parameters ####
 
-lmax = 2000
+lmax = 1000
 Tcmb  = 2.726e6    # CMB temperature in microkelvin?
 bstype = 'equi'
-ellmin, ellmax = 2, 2000
-rlmin, rlmax = 2, 2000 # CMB multipole range for reconstruction
+ellmin, ellmax = 2, 3000
+rlmin, rlmax = 2, 3000 # CMB multipole range for reconstruction
 
 ###### Read in and interpolate power spectra ####
 input_dir = "../Power_spectra"
 
 # Load the power spec
-L = np.arange(0,2000+1,1)
+L = np.arange(0,3000+1,1)
 gcl = np.loadtxt(os.path.join(input_dir, "lensed_clTT_lmax8000.txt"))
 lcl = np.loadtxt(os.path.join(input_dir, "lensed_clTT_lmax8000.txt")) # Using nonoise lensed power spectra atm cf Alba's numerical results. Change to ctot inc noise later.
-gcl = gcl[0:2001]
-lcl = lcl[0:2001]
+gcl = gcl[0:3001]
+lcl = lcl[0:3001]
 
 #Make noise power spectra
 theta_fwhm = 1.4 #In arcminutes

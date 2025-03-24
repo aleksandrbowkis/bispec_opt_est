@@ -37,8 +37,6 @@ def bigF(l: np.ndarray, L: np.ndarray, config) -> np.ndarray:
     np.ndarray
         Response function 
     """
-    # Small number to avoid division by zero
-    epsilon = 0#1e-34
 
     # Convert inputs to double precision
     l = np.array(l, dtype=np.float64)
@@ -53,10 +51,6 @@ def bigF(l: np.ndarray, L: np.ndarray, config) -> np.ndarray:
     # Response function f(l, L-l))
     f_lL = (np.sum(L * l, axis=-1) * Ctt(l_size) + 
               np.sum(L * (L-l), axis=-1) * Ctt(l_m_l_size))
-
-    #print((2 * Ctt(l_size) * Ctt(l_m_l_size)))
-    
-    #denominator = np.maximum((2 * Ctt(l_size) * Ctt(l_m_l_size)), epsilon)
 
     denominator = 2 * Ctt(l_size) * Ctt(l_m_l_size)
 
@@ -192,7 +186,7 @@ def usevegas_do_fold_no_series_integral(L1, L2, L3, config, ellmin=2, ellmax=300
             
             # Include the Jacobian factor from coordinate transformation
             # l_mag comes from the polar coordinate transformation
-            result[i] = (perm1 + perm2 + perm3) * l_mag[i] #* l_mag[i] #Add back last factorif log spacing used
+            result[i] = (perm1 + perm2 + perm3) * l_mag[i] #* l_mag[i] #Add back last factor if log spacing used
         
         # Include remaining Jacobian factors
         #return result * (np.log(ellmax) - np.log(ellmin)) * 2*np.pi #log spacing result
@@ -202,10 +196,10 @@ def usevegas_do_fold_no_series_integral(L1, L2, L3, config, ellmin=2, ellmax=300
     integ = vegas.Integrator([[0, 1], [0, 1]])
     
     # Do a warm-up integration to adapt the grid
-    warmup = integ(integrand_2d, nitn=1, neval=500)
+    warmup = integ(integrand_2d, nitn=1, neval=5000)
     
     # Perform the final integration
-    result = integ(integrand_2d, nitn=4, neval=6000)
+    result = integ(integrand_2d, nitn=20, neval=50000)
     
     return float(result.mean)  # Explicitly convert to float for multiprocessing
 
