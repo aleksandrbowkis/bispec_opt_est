@@ -4,3 +4,5 @@ direct_estimator/initialterm.sub
 direct_estimator/onesim.sub
 direct_estimator/twosims.sub
 direct_estimator/threesims.sub
+N2_numerical/Binning_effects/binning/logfiles/*.out
+N2_numerical/Binning_effects/binning/logfiles/*.err
