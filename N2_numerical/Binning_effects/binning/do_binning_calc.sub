@@ -1,8 +1,8 @@
 #!/bin/bash
 #SBATCH -J N2_bin_calc
 #SBATCH -A DIRAC-DP002-CPU
-#SBATCH --output=logfiles/N2_numerical_%A_%a.out
-#SBATCH --error=logfiles/N2_numerical_%A_%a.err
+#SBATCH --output=logfiles/fold_N2_numerical_%A_%a.out
+#SBATCH --error=logfiles/fold_N2_numerical_%A_%a.err
 #SBATCH --nodes=1
 #SBATCH --ntasks=4
 #SBATCH --cpus-per-task=18
@@ -25,4 +25,5 @@ export NUMEXPR_NUM_THREADS=$SLURM_CPUS_PER_TASK
 
 # Run the script
 #python Calc_binning.py
-python Test_binning_w3j.py
+#python Test_binning_w3j.py
+python Simple_N2_binning.py 
