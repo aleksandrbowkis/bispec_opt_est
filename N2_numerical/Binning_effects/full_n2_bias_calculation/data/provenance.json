@@ -1,0 +1,39 @@
+{
+  "file": "phi_norm_lmax3000_noise10.npy",
+  "sha256": "ec83da3dbaf3358b3777719526b3cfb87b373f76623afa62284f8649cffea0d6",
+  "array": {
+    "dtype": "float64",
+    "shape": [1002],
+    "index": "external lensing multipole L",
+    "computed_L_range": [1, 1001],
+    "L0": "unused zero placeholder",
+    "quantity": "A_L^phi: full-sky temperature-only quadratic-estimator normalization"
+  },
+  "inputs": {
+    "spectrum_path_from_repository_root": "make_sims_parallel/camb_lencl_phi.txt",
+    "spectrum_sha256": "cc40c4abb4a5696db400ea34d62be706477a8b614c5fde2f746db79fb7855929",
+    "response_spectrum": "lensed TT, divided by Tcmb^2",
+    "Tcmb_microkelvin": 2726000.0,
+    "CMB_reconstruction_ell_min": 2,
+    "CMB_reconstruction_ell_max": 3000,
+    "temperature_noise_microkelvin_arcmin": 10,
+    "beam_FWHM_arcmin": 1.4,
+    "noise_formula": "N_l = (noise*pi/(60*180)/Tcmb)^2 * exp(l*(l+1)*(beam*pi/(60*180))^2/(8*log(2)))",
+    "weight_spectrum": "D_l = C_l(lensed TT) + N_l"
+  },
+  "generation": {
+    "method": "Direct standard full-sky TT Wigner-3j sum using the analytic factorial formula for the all-zero-m Wigner symbol",
+    "normalization_formula": "1/A_L = sum_{l1,l2=2..3000} f(l1,L,l2)^2 / [2*(2*L+1)*D_l1*D_l2]",
+    "response_formula": "f = sqrt[(2*l1+1)*(2*L+1)*(2*l2+1)/(4*pi)] * Wigner3j(l1,L,l2;0,0,0) * {C_l1*[L*(L+1)+l1*(l1+1)-l2*(l2+1)] + C_l2*[L*(L+1)+l2*(l2+1)-l1*(l1+1)]}/2",
+    "selection": "triangle and even-parity selection included exactly",
+    "amplitude_fitted_to_saved_curves": false
+  },
+  "verification": {
+    "independent_check": "The same normalization method reproduces the repository's saved noiseless ellmax=2000 normalization to relative differences 6.98e-5 at L=2, 3.23e-6 at L=10 and 3.87e-8 at L=100.",
+    "historical_curve_reproduction_L_at_least_25": {
+      "equilateral_max_relative_difference": 2.14e-6,
+      "folded_max_relative_difference": 5.97e-6
+    },
+    "scope": "Fixed thesis physical configuration; runtime verifies both spectrum and cache hashes and disallows normalization extrapolation."
+  }
+}

@@ -10,3 +10,7 @@ N0_numerical/logfiles/*.out
 N0_numerical/logfiles/*.err
 N2_numerical/Binning_effects/non_series/logfiles/*.out
 N2_numerical/Binning_effects/non_series/logfiles/*.err
+
+# Local Python bytecode generated while rerunning the calculations.
+__pycache__/
+*.py[cod]

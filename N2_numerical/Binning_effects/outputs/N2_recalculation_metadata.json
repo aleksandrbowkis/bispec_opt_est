@@ -1,0 +1,38 @@
+{
+  "output_convention": "signed physical kappa bispectrum",
+  "geometry": "prod_i[(L_i+1)/L_i], applied once; kappa conversion already included",
+  "quadrature": "composite Gauss-Legendre on interpolation intervals, final sum checked at orders 8 and 12 (16/24 fallback)",
+  "normalization": {
+    "method": "verified independent full-sky TT Wigner-3j sum",
+    "cache": "N2_numerical/Binning_effects/full_n2_bias_calculation/data/phi_norm_lmax3000_noise10.npy",
+    "cache_path_base": "repository root",
+    "cache_sha256": "ec83da3dbaf3358b3777719526b3cfb87b373f76623afa62284f8649cffea0d6",
+    "spectrum_sha256": "cc40c4abb4a5696db400ea34d62be706477a8b614c5fde2f746db79fb7855929",
+    "available_lensing_L": [
+      0,
+      1001
+    ],
+    "reconstruction_ell_range": [
+      2,
+      3000
+    ],
+    "noise_microkelvin_arcmin": 10,
+    "beam_arcmin": 1.4
+  },
+  "outputs": {
+    "equilN2_from_full_int.txt": {
+      "shape": "equilateral",
+      "points": 998,
+      "first_L": 2.0,
+      "last_L": 999.0,
+      "sha256": "96d4eb750ac36e32dd4f433323312d603ef9bfebff3b2f8ca0f4fe7620d770b4"
+    },
+    "foldN2_from_full_int.txt": {
+      "shape": "folded",
+      "points": 200,
+      "first_L": 2.0,
+      "last_L": 997.0,
+      "sha256": "573a478484ca2664a7a979792b1b79a43feceefcb27374c46446d8dfaa123a3a"
+    }
+  }
+}
