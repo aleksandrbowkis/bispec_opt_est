@@ -196,10 +196,10 @@ def usevegas_do_fold_no_series_integral(L1, L2, L3, config, ellmin=2, ellmax=300
     integ = vegas.Integrator([[0, 1], [0, 1]])
     
     # Do a warm-up integration to adapt the grid
-    warmup = integ(integrand_2d, nitn=1, neval=5000)
+    warmup = integ(integrand_2d, nitn=2, neval=5000)
     
     # Perform the final integration
-    result = integ(integrand_2d, nitn=20, neval=50000)
+    result = integ(integrand_2d, nitn=25, neval=80000)
     
     return float(result.mean)  # Explicitly convert to float for multiprocessing
 

@@ -12,24 +12,24 @@ import multiprocessing as mp
 
 
 # Parameters
-lmax = 1000
+lmax = 3000 #this is for interp of flatskynorm and the other cl's. flatskynorm  is atm up to 2k. Possibly it should also be 3k??? 
 Tcmb  = 2.726e6    # CMB temperature in microkelvin?
 bstype = 'equi'
-ellmin, ellmax = 2, 3000
-rlmin, rlmax = 2, 3000 # CMB multipole range for reconstruction
+ellmin, ellmax = 2, 3000 #Unsure atm if this should be 3k also.
+rlmin, rlmax = 2, 3000 # CMB multipole range for reconstruction. THIS MUST BE CONSISTENT with sims which use rlmax = 3k
 
 # Define the directory where power spec are stored
 input_dir = "../Power_spectra"
 
 # Load the power spec
-L = np.arange(0,3000+1,1)
+L = np.arange(0,lmax+1,1)
 ucl = np.loadtxt(os.path.join(input_dir, "unlensed_clTT_lmax8000.txt"))
 gcl = np.loadtxt(os.path.join(input_dir, "glensed_clTT_lmax8000.txt"))
 #ctot = np.loadtxt(os.path.join(input_dir, "lensed_clTT_lmax8000.txt")) 
 lcl = np.loadtxt(os.path.join(input_dir, "lensed_clTT_lmax8000.txt"))
-ucl = ucl[0:3001]
-gcl = gcl[0:3001]
-lcl = lcl[0:3001]
+ucl = ucl[0:lmax+1]
+gcl = gcl[0:lmax+1]
+lcl = lcl[0:lmax+1]
 # ctot = ctot[0:2001]
 
 #Make noise power spectra
@@ -136,34 +136,38 @@ def compute_for_L(lensingL, gcl_interp, ctot_interp, lcl_interp, ellmin, ellmax,
     integration_limits = [[-ellmax, ellmax], [-ellmax, ellmax]]
     integrator = vegas.Integrator(integration_limits)
     
-    result = integrator(lambda x: integrand_N0_batched(x, L1, L3, gcl_interp, ctot_interp, lcl_interp, ellmin, ellmax), nitn=12, neval=15000)
+    result = integrator(lambda x: integrand_N0_batched(x, L1, L3, gcl_interp, ctot_interp, lcl_interp, ellmin, ellmax), nitn=7, neval=50000)
     from gvar import mean
     result_mean = mean(result)
     
-    # Apply normalization
-    norm_factor_phi = phi_norm(lensingL)
-    result_mean *= norm_factor_phi**3
+    # Apply normalization. Note for folded the normalisation factor should be different for the different triangle size lengths - L, L/2, L/2. For equi can just use the one.
+    norm_factor_phi_L = phi_norm(lensingL)
+    norm_factor_phi_Lhalf = phi_norm(lensingL/2)
+    result_mean *= norm_factor_phi_L**3        #*norm_factor_phi_Lhalf**2 This was for folded triangles but equi triangles don't need this.
     if isinstance(result_mean, np.ndarray):
         result_mean = result_mean[0]
     return result_mean.item()
 
 ################ Main code ####################
 def main():
-    samples = 100 # or fully sampled: int(rlmax-rlmin+1)
+    samples = 500 # or fully sampled: int(rlmax-rlmin+1)
     lensingLarray = np.linspace(ellmin, ellmax, samples)
     output_dir = "N0_numerical_BATCHvegas"
     os.makedirs(output_dir, exist_ok=True)
+    ncpus = int(os.environ.get('SLURM_CPUS_PER_TASK', 32))
+
 
     # Use multiprocessing to parallelise over the lensing L's (calculate integral for each lensing L) 
-    with mp.Pool(processes=mp.cpu_count()) as pool:
+    with mp.Pool(processes=ncpus) as pool:
         results = pool.starmap(compute_for_L, [(lensingL, gcl_interp, ctot_interp,lcl_interp, ellmin, ellmax, flat_sky_norm_interp) for lensingL in lensingLarray])
 
 
     # Convert the results to a numpy array and save
     output = np.array(results)
-    np.save(os.path.join(output_dir, "L_N0_num.npy"), lensingLarray)
-    np.save(os.path.join(output_dir, "N0_numerical_equi.npy"), output)
+    np.save(os.path.join(output_dir, "rlmax3k_EQUI_L_N0_num.npy"), lensingLarray)
+    np.save(os.path.join(output_dir, "rlmax3k_EQUI_N0_numerical.npy"), output)
     print()
 
 if __name__ == '__main__':
     main()
+    #Note compute for L is currently hardcoded for folded triangles, update this! Also hard coded the different normalisation factors.

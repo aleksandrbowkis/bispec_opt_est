@@ -9,7 +9,7 @@ from scipy.interpolate import interp1d
 
 ###### Parameters ####
 
-lmax = 1000
+lmax = 3000
 Tcmb  = 2.726e6    # CMB temperature in microkelvin?
 bstype = 'equi'
 ellmin, ellmax = 2, 3000
@@ -102,7 +102,7 @@ def compute_normalisation(L, gcl_interp, ctot_interp, ellmin, ellmax):
 
 ##### Main #####
 def main():
-    L_output = np.arange(0, 2001, 1)
+    L_output = np.arange(0, lmax+1, 1)
     output_dir = "normalisation"
     os.makedirs(output_dir, exist_ok=True)
     # results = []
@@ -114,7 +114,11 @@ def main():
     # print(results)
 
     # Use multiprocessing to parallelise over the lensing L's (calculate integral for each lensing L) 
-    with mp.Pool(processes=mp.cpu_count()) as pool:
+    # Use SLURM allocated CPUs if available, otherwise fall back to all CPUs
+    num_processes = int(os.environ.get('SLURM_CPUS_PER_TASK', mp.cpu_count()))
+    print(f"Using {num_processes} processes for multiprocessing")
+    
+    with mp.Pool(processes=num_processes) as pool:
         results = pool.starmap(compute_normalisation, [(L, gcl_interp, ctot_interp, ellmin, ellmax) for L in L_output])
 
     # Convert the results to a numpy array and save

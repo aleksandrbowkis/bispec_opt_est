@@ -17,6 +17,7 @@ lmax = 2000
 Tcmb  = 2.726e6    # CMB temperature in microkelvin?
 bstype = 'equi'
 ellmin, ellmax = 2, 2000
+rlmin, rlmax = 2,2000
 
 # Define the directory where power spec are stored
 input_dir = "../Power_spectra"
@@ -109,8 +110,8 @@ def integrand_N1(x, L1, L2, gcl_interp, ctot_interp, lcl_interp, cphi_interp, el
     """
     x = np.atleast_2d(x) # Make x into a 2d array as expected in code below
     # x[:, 0] is the x-component of l1, x[:, 1] is the y-component of l2 then x[:, 2] is x component of l2 etc
-    l1 = np.stack((x[:, 0], x[:, 1]))
-    l2 = np.stack((x[:, 2], x[:, 3]))
+    l1 = np.stack((x[:, 0], x[:, 1]), axis=1)
+    l2 = np.stack((x[:, 2], x[:, 3]), axis=1)
 
     # Now compute the relevant vectors
     L1minusl1 = L1[np.newaxis, :] - l1
@@ -168,7 +169,7 @@ def compute_for_L(lensingL, gcl_interp, ctot_interp, lcl_interp, cphi_interp, el
     integration_limits = [[-ellmax, ellmax], [-ellmax, ellmax], [-ellmax, ellmax], [-ellmax, ellmax]]
     integrator = vegas.Integrator(integration_limits)
     
-    result = integrator(lambda x: integrand_N1(x, L1, L2, gcl_interp, ctot_interp, lcl_interp, cphi_interp, ellmin, ellmax), nitn=10, neval=1e5)
+    result = integrator(lambda x: integrand_N1(x, L1, L2, gcl_interp, ctot_interp, lcl_interp, cphi_interp, ellmin, ellmax), nitn=5, neval=1e5)
     from gvar import mean
     result_mean = mean(result)
     
@@ -181,7 +182,7 @@ def compute_for_L(lensingL, gcl_interp, ctot_interp, lcl_interp, cphi_interp, el
 
 ################ Main code ####################
 def main():
-    samples = int(rlmax-rlmin+1) # or fully sampled: int(rlmax-rlmin+1)
+    samples = 10 # or fully sampled: int(rlmax-rlmin+1)
     lensingLarray = np.linspace(ellmin, ellmax, samples)
     output_dir = "N1_numerical_results"
     os.makedirs(output_dir, exist_ok=True)
