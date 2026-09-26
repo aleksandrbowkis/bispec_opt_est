@@ -1,0 +1,98 @@
+{
+  "shape": "equilateral",
+  "sign": "physical signed kappa bias",
+  "binning_rule": "unchanged half-open integer bins and all labelled Wigner-weighted triangles",
+  "bins": [
+    {
+      "lower": 20,
+      "upper_exclusive": 40,
+      "nonzero_weight_labelled_triangles": 4000,
+      "normalisation": 29615.226356303556,
+      "signed_kappa_bias": -6.004448218276364e-14
+    },
+    {
+      "lower": 40,
+      "upper_exclusive": 60,
+      "nonzero_weight_labelled_triangles": 4000,
+      "normalisation": 47488.27280391729,
+      "signed_kappa_bias": 1.824688783939818e-14
+    },
+    {
+      "lower": 60,
+      "upper_exclusive": 80,
+      "nonzero_weight_labelled_triangles": 4000,
+      "normalisation": 65983.55369954773,
+      "signed_kappa_bias": 2.7738033196496502e-14
+    },
+    {
+      "lower": 80,
+      "upper_exclusive": 100,
+      "nonzero_weight_labelled_triangles": 4000,
+      "normalisation": 84591.58240254964,
+      "signed_kappa_bias": 2.620770661005078e-14
+    },
+    {
+      "lower": 100,
+      "upper_exclusive": 200,
+      "nonzero_weight_labelled_triangles": 500000,
+      "normalisation": 18525004.02832921,
+      "signed_kappa_bias": -2.8311401537571626e-14
+    },
+    {
+      "lower": 200,
+      "upper_exclusive": 300,
+      "nonzero_weight_labelled_triangles": 500000,
+      "normalisation": 29683995.279129956,
+      "signed_kappa_bias": 2.0911659358096967e-15
+    },
+    {
+      "lower": 300,
+      "upper_exclusive": 400,
+      "nonzero_weight_labelled_triangles": 500000,
+      "normalisation": 41242186.02382922,
+      "signed_kappa_bias": 2.39887803056125e-15
+    },
+    {
+      "lower": 400,
+      "upper_exclusive": 500,
+      "nonzero_weight_labelled_triangles": 500000,
+      "normalisation": 52871583.58842751,
+      "signed_kappa_bias": 1.5450421182021181e-15
+    },
+    {
+      "lower": 500,
+      "upper_exclusive": 600,
+      "nonzero_weight_labelled_triangles": 500000,
+      "normalisation": 64528561.339328974,
+      "signed_kappa_bias": 9.687594580651264e-16
+    },
+    {
+      "lower": 600,
+      "upper_exclusive": 700,
+      "nonzero_weight_labelled_triangles": 500000,
+      "normalisation": 76199360.40787575,
+      "signed_kappa_bias": 6.367580602928883e-16
+    },
+    {
+      "lower": 700,
+      "upper_exclusive": 800,
+      "nonzero_weight_labelled_triangles": 500000,
+      "normalisation": 87878134.20731863,
+      "signed_kappa_bias": 4.2986871471231885e-16
+    },
+    {
+      "lower": 800,
+      "upper_exclusive": 900,
+      "nonzero_weight_labelled_triangles": 500000,
+      "normalisation": 99561946.77242696,
+      "signed_kappa_bias": 3.008733760891587e-16
+    },
+    {
+      "lower": 900,
+      "upper_exclusive": 1000,
+      "nonzero_weight_labelled_triangles": 500000,
+      "normalisation": 111249153.52407253,
+      "signed_kappa_bias": 2.2110199809725272e-16
+    }
+  ]
+}

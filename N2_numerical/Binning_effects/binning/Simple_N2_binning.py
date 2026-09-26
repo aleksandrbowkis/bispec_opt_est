@@ -1,227 +1,158 @@
-""" Code to check whether normalisation code for N2 outputs 1 if input unnormalised N2 is 1/"""
-import numpy as np
-import sympy as sp
-import sys, os
+"""Rerun the thesis bins with the corrected, physical signed N2 integral.
+
+Preserves the original half-open integer bins, all labelled triangles,
+Wigner-000 weights and bin normalisation. The closed-form factorial Wigner formula
+removes a machine-specific library dependency. Vectorised triangle slices
+reuse the same eight radial integrals instead of recomputing them per triangle.
+"""
+from __future__ import annotations
+import argparse
+import json
 from multiprocessing import Pool
-from functools import partial
+from pathlib import Path
+import sys
 import time
-sys.path.append('/home/amb257/software/cmplx_cmblensplus/wrap')
-sys.path.append('/home/amb257/software/cmplx_cmblensplus/utils')
-import curvedsky as cs
-import basic
+import numpy as np
+from scipy.special import gammaln
 
-sys.path.append('/home/amb257/kappa_bispec/bispec_opt_est/Configuration/') # Add path to configuration file include power spectra etc
-from config import CMBConfig # Import CMBConfig class from config.py
-# Import configuration class. can now do config.ctot_interp(l) etc.
-config = CMBConfig()
+CALCULATION = Path(__file__).resolve().parents[1] / 'full_n2_bias_calculation'
+sys.path.insert(0, str(CALCULATION))
+from full_N2 import do_N2_integral
 
-sys.path.append('/home/amb257/kappa_bispec/bispec_opt_est/N2_numerical/Binning_effects/full_n2_bias_calculation') # Add path to full_N2.py
-from full_N2 import do_N2_integral # New full N2 calculation
+BIN_EDGES = np.array([20, 40, 60, 80, 100, 200, 300, 400, 500,
+                      600, 700, 800, 900, 1000])
 
-# Define functions for normalisation, finding angles associates with triangle multipoles
 
 def N(L1, L2, L3):
-    """Compute the normalisation factor for arrays of triplets L1, L2, L3 used in binned bispec estimator"""
-    w3j = basic.wigner_funcs.wigner_3j(L3,L2,0,0)
-    lower_bound_w3j = np.abs(L3 - L2)
-    position_L1_in_w3j = L1 - lower_bound_w3j
-    if L1 >= lower_bound_w3j and np.abs(L1) <= np.abs(L3 + L2):
-        N = (2*L1+1)*(2*L2+1)*(2*L3+1) * w3j[position_L1_in_w3j]**2 / (4*np.pi)
-    else:
-        #print("L1 out of bounds")
-        N = 0
-    return N
+    """Original integer-multipole Wigner-000 weight using log factorials."""
+    a, b, c = np.broadcast_arrays(np.asarray(L1, dtype=int),
+                                  np.asarray(L2, dtype=int),
+                                  np.asarray(L3, dtype=int))
+    result = np.zeros(a.shape, dtype=float)
+    allowed = ((a >= 0) & (b >= 0) & (c >= 0)
+               & (a + b >= c) & (a + c >= b) & (b + c >= a)
+               & ((a + b + c) % 2 == 0))
+    av, bv, cv = a[allowed], b[allowed], c[allowed]
+    g = (av + bv + cv) // 2
+    log_square = (2 * (gammaln(g + 1) - gammaln(g - av + 1)
+                      - gammaln(g - bv + 1) - gammaln(g - cv + 1))
+                  + gammaln(2 * (g - av) + 1)
+                  + gammaln(2 * (g - bv) + 1)
+                  + gammaln(2 * (g - cv) + 1) - gammaln(2 * g + 2))
+    result[allowed] = ((2. * av + 1) * (2. * bv + 1) * (2. * cv + 1)
+                       * np.exp(log_square) / (4 * np.pi))
+    return float(result) if result.ndim == 0 else result
 
-def N_bin(bin_edges, is_it_folded):
-    """Compute the normalisation factor for all bins"""
-    size_bin_edges = len(bin_edges)
-
-    if is_it_folded == False:
-        changebins = 1
-    else:
-        changebins = 2
-    
-    N = np.zeros(size_bin_edges-1)
-    sum = 0
-    for index, item in enumerate(bin_edges[0:size_bin_edges-1]):
-        sum = 0
-        lower_bound_bin = int(item)
-        upper_bound_bin = int(bin_edges[index+1])
-        for l3 in range(int(lower_bound_bin/changebins), int(upper_bound_bin/changebins)):
-            for l2 in range(int(lower_bound_bin/changebins), int(upper_bound_bin/changebins)):
-                #First calculate the l bounds of w3j function (allowed l1 values given l2,3)
-                lower_bound_w3j = np.abs(l3 - l2)
-                upper_bound_w3j = l3 + l2
-                #Calculate the w3j's
-                w3j = basic.wigner_funcs.wigner_3j(l3,l2,0,0)
-                for l1 in range(lower_bound_bin, upper_bound_bin):
-                    if l1 >= lower_bound_w3j and l1 <= upper_bound_w3j: 
-                        position_l1_in_w3j = l1 - lower_bound_w3j #this is the position of the current value of l1 in the w3j array
-                        sum += (2*l1+1)*(2*l2+1)*(2*l3+1) * w3j[position_l1_in_w3j]**2 / (4*np.pi)
-        N[index] = sum
-    return N
 
 def find_angles(L1, L2, L3):
-    """Vectorized angle calculation"""
-    theta1 = np.arccos((L2**2 + L3**2 - L1**2) / (2 * L2 * L3))
-    theta2 = np.arccos((L1**2 + L3**2 - L2**2) / (2 * L1 * L3))
-    theta3 = np.arccos((L1**2 + L2**2 - L3**2) / (2 * L1 * L2))
-    
-    x1 = np.zeros_like(L1)
-    x2 = np.pi - theta3
-    x3 = 2*np.pi - (theta1 + theta3)
-    return x1, x2, x3
+    """Original triangle orientation, with round-off clipping."""
+    L1, L2, L3 = np.broadcast_arrays(np.asarray(L1, dtype=float),
+                                     np.asarray(L2, dtype=float),
+                                     np.asarray(L3, dtype=float))
+    theta1 = np.arccos(np.clip((L2**2 + L3**2 - L1**2) / (2 * L2 * L3), -1, 1))
+    theta3 = np.arccos(np.clip((L1**2 + L2**2 - L3**2) / (2 * L1 * L2), -1, 1))
+    return np.zeros_like(L1), np.pi - theta3, 2 * np.pi - (theta1 + theta3)
 
-# Define the worker function outside of bin_N2
+
+def _triangle_slice(lower, upper, L1, fold):
+    divisor = 2 if fold else 1
+    sides = np.arange(int(lower / divisor), int(upper / divisor))
+    L2, L3 = np.meshgrid(sides, sides, indexing='ij')
+    weights = N(L1, L2, L3)
+    allowed = weights != 0
+    return (np.full(np.count_nonzero(allowed), L1), L2[allowed], L3[allowed]), weights[allowed]
+
+
+def N_bin(bin_edges, is_it_folded):
+    return np.array([sum(np.sum(_triangle_slice(lo, hi, L1, is_it_folded)[1])
+                         for L1 in range(int(lo), int(hi)))
+                     for lo, hi in zip(bin_edges[:-1], bin_edges[1:])])
+
+
+def _weighted_slice(task, config):
+    lower, upper, L1, fold = task
+    lengths, weights = _triangle_slice(lower, upper, L1, fold)
+    if not len(weights):
+        return 0., 0., 0
+    angles = find_angles(*lengths)
+    values = do_N2_integral(*lengths, *angles, config.cl_phi_interp,
+                            config.ctot_interp, config.lcl_interp,
+                            config.ctotprime_interp, config.lclprime_interp,
+                            config.lcldoubleprime_interp, config.norm_factor_phi)
+    return float(np.dot(weights, values)), float(np.sum(weights)), len(weights)
+
+
 def process_L1(args):
-    """
-    Process a single L1 value for a specific bin.
-    
-    Parameters:
-    args (tuple): (bin_idx, L1, bin_edges, config)
-    
-    Returns:
-    tuple: (bin_idx, L1_sum)
-    """
-    bin_idx, L1, bin_edges, config = args
-    L2_array = np.arange(bin_edges[bin_idx], bin_edges[bin_idx+1])
-    L3_array = np.arange(bin_edges[bin_idx], bin_edges[bin_idx+1])
-    
-    L1_sum = 0
-    for L2 in L2_array:
-        for L3 in L3_array:
-            if N(L1, L2, L3) != 0:
-                x1, x2, x3 = find_angles(L1, L2, L3)
-                N2_unnorm = do_N2_integral(L1, L2, L3, x1, x2, x3, config.cl_phi_interp, 
-                                        config.ctot_interp, config.lcl_interp, config.ctotprime_interp, 
-                                        config.lclprime_interp, config.lcldoubleprime_interp, 
-                                        config.norm_factor_phi)
-                L1_sum += N(L1, L2, L3) * N2_unnorm
-    
-    return bin_idx, L1_sum
+    index, L1, edges, config = args
+    return index, _weighted_slice((edges[index], edges[index + 1], L1, False), config)[0]
+
 
 def process_L1_folded(args):
-    """
-    Process a single L1 value for a specific bin in folded case.
-    
-    Parameters:
-    args (tuple): (bin_idx, L1, bin_edges, config)
-    
-    Returns:
-    tuple: (bin_idx, L1_sum)
-    """
-    bin_idx, L1, bin_edges, config = args
-    L2_array = np.arange(int(bin_edges[bin_idx]/2), int(bin_edges[bin_idx+1]/2))
-    L3_array = np.arange(int(bin_edges[bin_idx]/2), int(bin_edges[bin_idx+1]/2))
-    
-    L1_sum = 0
-    total_triangles = 0
-    valid_triangles = 0
-    for L2 in L2_array:
-        for L3 in L3_array:
-            total_triangles += 1
-            if N(L1, L2, L3) != 0:
-                valid_triangles += 1
-                x1, x2, x3 = find_angles(L1, L2, L3)
-                N2_unnorm = do_N2_integral(L1, L2, L3, x1, x2, x3, config.cl_phi_interp, 
-                                        config.ctot_interp, config.lcl_interp, config.ctotprime_interp, 
-                                        config.lclprime_interp, config.lcldoubleprime_interp, 
-                                        config.norm_factor_phi)
-                L1_sum += N(L1, L2, L3) * N2_unnorm                 
-    #print(f"L1={L1}: Considered {total_triangles} triangles, {valid_triangles} were valid")
-    return bin_idx, L1_sum
+    index, L1, edges, config = args
+    return index, _weighted_slice((edges[index], edges[index + 1], L1, True), config)[0]
 
 
-def bin_N2(bin_edges, config, fold=False, num_processes=None):
-    """
-    Calculate binned N2 bias term with parallelization over L1.
-    
-    Parameters:
-    bin_edges (array): Edges for the multipole bins
-    config (CMBConfig): Configuration object containing interpolation functions
-    fold (bool): Whether to use folded binning (default: False)
-    num_processes (int): Number of processes for parallelization (default: None, uses all available)
-    
-    Returns:
-    array: N2 bias term for each bin
-    """
-    if fold == False:
-        N_equi = N_bin(bin_edges, False) # Compute normalisation at bin level for equilateral case
-        N2 = np.zeros(len(bin_edges) - 1)
-        
-        # Process each bin
-        with Pool(processes=num_processes) as pool:
-            for bin_idx in range(len(bin_edges) - 1):
-                start_time = time.time()  # Track time for this bin
-                
-                # Get all L1 values in this bin
-                L1_array = np.arange(bin_edges[bin_idx], bin_edges[bin_idx+1])
-                
-                # Create tasks for parallel processing - pass all necessary data
-                tasks = [(bin_idx, L1, bin_edges, config) for L1 in L1_array]
-                
-                # Process all L1 values in parallel
-                results = pool.map(process_L1, tasks)
-                
-                # Sum results and normalize by N_equi
-                bin_sum = sum(result[1] for result in results)
-                N2[bin_idx] = bin_sum / N_equi[bin_idx]
-                
-                # Report time taken for this bin
-                print(f"Bin {bin_idx} ({bin_edges[bin_idx]}-{bin_edges[bin_idx+1]}) completed in {time.time() - start_time:.2f} seconds")
-    else:
-        N_fold = N_bin(bin_edges, True) # Compute normalisation at bin level for equilateral case
-        N2 = np.zeros(len(bin_edges) - 1)
-        
-        # Process each bin
-        with Pool(processes=num_processes) as pool:
-            for bin_idx in range(len(bin_edges) - 1):
-                start_time = time.time()  # Track time for this bin
-                
-                # Get all L1 values in this bin
-                L1_array = np.arange(bin_edges[bin_idx], bin_edges[bin_idx+1])
-                
-                # Create tasks for parallel processing - pass all necessary data
-                tasks = [(bin_idx, L1, bin_edges, config) for L1 in L1_array]
-                
-                # Process all L1 values in parallel
-                results = pool.map(process_L1_folded, tasks)
-                
-                # Sum results and normalize by N_equi
-                bin_sum = sum(result[1] for result in results)
-                N2[bin_idx] = bin_sum / N_fold[bin_idx]
-                
-                # Report time taken for this bin
-                print(f"Bin {bin_idx} ({bin_edges[bin_idx]}-{bin_edges[bin_idx+1]}) completed in {time.time() - start_time:.2f} seconds")
-        
-    return N2
+def _worker_init(config):
+    global _worker_config
+    _worker_config = config
 
 
-# Update the main function to use parallelization
+def _worker_slice(task):
+    return _weighted_slice(task, _worker_config)
+
+
+def bin_N2(bin_edges, config, fold=False, num_processes=1, diagnostics=None):
+    """Physical signed bias averaged with the unchanged thesis weights."""
+    answer = []
+    pool = Pool(num_processes, initializer=_worker_init, initargs=(config,)) if num_processes and num_processes > 1 else None
+    try:
+        for lower, upper in zip(bin_edges[:-1], bin_edges[1:]):
+            start = time.monotonic()
+            tasks = [(lower, upper, L1, fold) for L1 in range(int(lower), int(upper))]
+            rows = list(pool.map(_worker_slice, tasks)) if pool else [_weighted_slice(task, config) for task in tasks]
+            numerator = sum(row[0] for row in rows)
+            denominator = sum(row[1] for row in rows)
+            if denominator <= 0:
+                raise ValueError(f'No weighted triangles in bin [{lower}, {upper})')
+            value = numerator / denominator
+            answer.append(value)
+            record = {'lower': int(lower), 'upper_exclusive': int(upper),
+                      'nonzero_weight_labelled_triangles': int(sum(row[2] for row in rows)),
+                      'normalisation': denominator, 'signed_kappa_bias': value}
+            if diagnostics is not None:
+                diagnostics.append(record)
+            print(f'Bin [{lower}, {upper}): {value:.12e} ({time.monotonic() - start:.2f} s)', flush=True)
+    finally:
+        if pool:
+            pool.close()
+            pool.join()
+    return np.asarray(answer)
+
+
 def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('folded', nargs='?', help='Legacy True/False option')
+    parser.add_argument('--shape', choices=['both', 'equilateral', 'folded'], default='both')
+    parser.add_argument('--processes', type=int, default=1)
+    parser.add_argument('--output-dir', type=Path, default=Path(__file__).resolve().parents[1] / 'outputs')
+    args = parser.parse_args()
+    if args.folded is not None:
+        args.shape = 'folded' if args.folded.lower() in ['true', 't', '1', 'yes', 'y'] else 'equilateral'
+    from runtime_config import load_config
+    config = load_config()
+    args.output_dir.mkdir(parents=True, exist_ok=True)
+    shapes = ['equilateral', 'folded'] if args.shape == 'both' else [args.shape]
+    for shape in shapes:
+        diagnostics = []
+        values = bin_N2(BIN_EDGES, config, fold=shape == 'folded',
+                        num_processes=args.processes, diagnostics=diagnostics)
+        np.save(args.output_dir / f'Simple_N2_binned_{shape}.npy',
+                ((BIN_EDGES[1:] + BIN_EDGES[:-1]) / 2, values))
+        (args.output_dir / f'Simple_N2_binned_{shape}_checks.json').write_text(
+            json.dumps({'shape': shape, 'sign': 'physical signed kappa bias',
+                        'binning_rule': 'unchanged half-open integer bins and all labelled Wigner-weighted triangles',
+                        'bins': diagnostics}, indent=2) + '\n')
 
-    is_it_folded = False
-    if len(sys.argv) > 1:
-        if sys.argv[1].lower() in ['true', 't', '1', 'yes', 'y']:
-            is_it_folded = True
-    
-    bin_edges = np.array([20, 40, 60, 80, 100, 200,300, 400, 500,600, 700,800, 900, 1000])
-    bin_mid = (bin_edges[1:] + bin_edges[:-1]) / 2
-    # Use environment variables to determine process count
-    import os
-    # Either use all cores on the node, or a specific number per task
-    total_cores = int(os.environ.get('SLURM_NTASKS', 1)) * int(os.environ.get('SLURM_CPUS_PER_TASK', 1))
-    num_processes = max(1, total_cores - 2)  # Leave a couple cores for system tasks
-    
-    print(f"Using {num_processes} processes for parallelization")
-    
-    start_time = time.time()
-    N2 = bin_N2(bin_edges, config, fold=is_it_folded, num_processes=num_processes)
-    print('N2', N2)
-    # Save results    
-    fold_str = 'folded' if is_it_folded else 'equilateral'
-    output_fd_filename = f'../outputs/Simple_N2_binned_{fold_str}.npy'
-    np.save(output_fd_filename, (bin_mid, N2))
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
